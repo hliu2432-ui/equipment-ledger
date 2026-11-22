@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>宝钢除尘特种设备台账与到期看板系统 </title>
-<!-- Supabase JS SDK v2（CDN） -->
+<!-- Supabase JS SDK v2（CDN，UMD 包已内置 Auth：supabase.auth） -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <style>
@@ -271,16 +271,50 @@
   .data-alert{background:var(--amber-soft);border:1px solid var(--amber);color:#92400e;border-radius:10px;padding:11px 14px;font-size:13px;margin-bottom:16px;line-height:1.75;word-break:break-word}
   .data-alert code{background:rgba(255,255,255,.7);border:1px solid rgba(217,119,6,.35);border-radius:5px;padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
   .err-detail{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-sub);text-align:left;line-height:1.8;margin-top:14px;word-break:break-all}
+
+  /* ===== 登录卡片 ===== */
+  .auth-form{display:flex;flex-direction:column;gap:14px;margin-top:22px;text-align:left}
+  .auth-field label{display:block;font-size:12.5px;color:var(--text-sub);font-weight:600;margin-bottom:6px}
+  .auth-input{width:100%;border:1px solid var(--border-strong);border-radius:10px;padding:12px 14px;font-size:14px;background:var(--surface);color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s}
+  .auth-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.12)}
+  .auth-input::placeholder{color:var(--text-faint)}
+  .auth-pwd{position:relative}
+  .auth-pwd .auth-input{padding-right:58px}
+  .auth-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:none;background:transparent;color:var(--primary);font-size:12px;font-weight:600;padding:6px 8px;border-radius:6px;cursor:pointer}
+  .auth-eye:hover{background:var(--primary-soft)}
+  .auth-submit{width:100%;justify-content:center;padding:12px 18px;font-size:15px;margin-top:2px}
+  .auth-form-error{display:none;background:var(--red-soft);border:1px solid #fecaca;color:var(--red);border-radius:8px;padding:9px 12px;font-size:12.5px;line-height:1.6}
+  .auth-form-error.show{display:block}
+  .auth-hint{font-size:12px;color:var(--text-faint);margin-top:14px;text-align:center;line-height:1.6}
+  .user-chip span{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 </style>
 </head>
 <body>
 
-<!-- ============ 启动 / Supabase 数据加载 ============ -->
+<!-- ============ 登录 / 启动 ============ -->
 <div id="authView">
   <div class="auth-card">
     <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
     <h1>宝钢除尘特种设备台账与到期看板系统</h1>
-    <p class="auth-desc" id="bootDesc">正在连接 Supabase · <code>ledger</code> 表 …</p>
+    <p class="auth-desc" id="bootDesc">正在检查登录状态 …</p>
+
+    <form class="auth-form" id="loginForm" style="display:none;">
+      <div class="auth-field">
+        <label for="loginEmail">邮箱</label>
+        <input class="auth-input" id="loginEmail" name="email" type="email" inputmode="email" autocomplete="username" placeholder="name@company.com" required />
+      </div>
+      <div class="auth-field">
+        <label for="loginPassword">密码</label>
+        <div class="auth-pwd">
+          <input class="auth-input" id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="请输入登录密码" required />
+          <button class="auth-eye" type="button" id="togglePwd" aria-label="显示密码">显示</button>
+        </div>
+      </div>
+      <div class="auth-form-error" id="loginError"></div>
+      <button class="btn btn-primary auth-submit" id="loginBtn" type="submit">登录</button>
+    </form>
+
+    <div class="auth-hint" id="loginHint" style="display:none;">使用 Supabase 后台创建的账号登录</div>
     <div class="auth-error" id="authError"></div>
     <button class="btn btn-primary" id="reloadBtn" style="display:none;width:100%;margin-top:18px;justify-content:center;" onclick="location.reload()">重新加载</button>
   </div>
@@ -293,13 +327,13 @@
       <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
       <div><div class="topbar-title">宝钢除尘特种设备台账与到期看板系统</div><div class="topbar-sub">特种设备 / 简单压力容器 · Supabase ledger</div></div>
       <div class="topbar-spacer"></div>
-      <div class="readonly-badge" id="readonlyBadge">只读模式</div>
+      <div class="readonly-badge" id="readonlyBadge">已登录</div>
       <div class="user-chip"><div class="avatar" id="avatar">—</div><span id="userName">—</span></div>
-      <button class="icon-btn" id="logoutBtn">退出</button>
+      <button class="icon-btn" id="logoutBtn">退出登录</button>
     </div>
   </div>
   <div class="main">
-    <div class="readonly-tip" id="readonlyTip" style="display:none;">当前为<strong>云端只读模式</strong>：数据实时来自 Supabase <code>ledger</code> 表，页面不写库。在 Supabase 中修改数据后，点击右上角「刷新」重新查询。</div>
+    <div class="readonly-tip" id="readonlyTip" style="display:none;">已登录：数据实时来自 Supabase <code>ledger</code> 表，当前页面仅做查询展示。需要修改数据请到 Supabase 后台操作。</div>
     <div class="data-alert" id="dataAlert" style="display:none;"></div>
     <div class="stats">
       <div class="stat total"><div class="stat-label"><span class="stat-dot"></span>设备总数</div><div class="stat-value" id="statTotal">0</div><div class="stat-hint">台账内全部设备</div></div>
@@ -454,21 +488,23 @@ function deviceStatus(row){
   return best;
 }
 
-/* ===================== 旧 WorkBuddy 登录代码已移除 ===================== */
-// 本版本改用 Supabase（Publishable Key + RLS 只读），不再需要 WorkBuddy OAuth / PKCE 登录。
-/* ===================== Supabase 启动 / 只读界面 ===================== */
-let readonlyMode=true;   // 前端只读：只查询，不写库
+/* ===================== Supabase Auth / 登录界面 ===================== */
+let readonlyMode=true;   // 页面仍为只读展示，写操作在 Supabase 后台完成
+
 function applyReadonlyUI(){
+  const name=(currentUser&&currentUser.name)||"已登录用户";
   const badge=$("readonlyBadge");
-  if(badge){badge.textContent="云端只读";badge.classList.add("show");}
+  if(badge){badge.textContent="已登录";badge.classList.add("show");}
   const tip=$("readonlyTip");
   if(tip){
     tip.style.display="block";
-    tip.innerHTML="当前为 <strong>云端只读模式</strong>：数据实时来自 Supabase <code>ledger</code> 表，页面不写库。修改数据后点右上角「刷新」重新查询。";
+    tip.innerHTML="已登录：数据实时来自 Supabase <code>ledger</code> 表，当前页面仅做查询展示。需要修改数据请到 Supabase 后台操作。";
   }
-  $("userName").textContent="云端台账";
-  const av=$("avatar");if(av)av.textContent="云";
-  ["logoutBtn","importBtn","batchPhotoBtn","addBtn"].forEach(id=>{const el=$(id);if(el)el.style.display="none";});
+  $("userName").textContent=name;
+  const av=$("avatar");if(av)av.textContent=name.slice(0,1).toUpperCase();
+  ["importBtn","batchPhotoBtn","addBtn"].forEach(id=>{const el=$(id);if(el)el.style.display="none";});
+  const out=$("logoutBtn");
+  if(out){out.style.display="";out.disabled=false;out.textContent="退出登录";}
 }
 function showFatalError(title,desc){
   $("loadingState").style.display="none";
@@ -476,6 +512,8 @@ function showFatalError(title,desc){
   $("emptyState").style.display="none";
   $("appView").style.display="none";
   $("authView").style.display="flex";
+  const form=$("loginForm");if(form)form.style.display="none";
+  const hint=$("loginHint");if(hint)hint.style.display="none";
   const h=$("authView").querySelector("h1");if(h)h.textContent=title;
   const p=$("bootDesc");if(p)p.innerHTML=desc;
   const rb=$("reloadBtn");if(rb)rb.style.display="block";
@@ -492,10 +530,12 @@ function supabaseErrorHTML(err){
   if(/relation .*does not exist|42p01|undefined table/.test(all)){
     advice="表 <code>ledger</code> 不存在：请确认表名拼写，且表建在 <code>public</code> schema 下。";
   }else if(/permission denied|42501|row-level security|rls/.test(all)){
-    advice="查询被 RLS（行级安全）拦截：请在 Supabase SQL Editor 给 ledger 表加一条 SELECT 策略，例如："
-      +"<div class=\"serve-box\"><code>create policy \"public read\" on public.ledger for select using (true);</code></div>";
+    advice="查询被 RLS（行级安全）拦截：请确认已为当前账号添加 SELECT 策略，例如："
+      +"<div class=\"serve-box\"><code>create policy \"ledger read\" on public.ledger for select to authenticated using (true);</code></div>";
+  }else if(/invalid login credentials|invalid credentials/.test(all)){
+    advice="邮箱或密码不正确；请在 Supabase Authentication 中确认该用户已创建。";
   }else if(/jwt|invalid api key|apikey|401|unauthorized/.test(all)){
-    advice="Key 可能无效：请核对 Project URL 与 Publishable Key 是否属于同一个项目。";
+    advice="Key 可能无效或会话已过期：请核对 Project URL 与 Publishable Key，并重新登录。";
   }else if(/failed to fetch|networkerror|load failed|network/.test(all)){
     advice="网络无法访问 <code>"+SUPABASE_URL+"</code>：请检查本机网络、代理或公司防火墙。";
   }else if(/column .* does not exist|42703/.test(all)){
@@ -507,25 +547,124 @@ function supabaseErrorHTML(err){
     +(hint?'<br><b>提示：</b>'+esc(hint):"")
     +'</div>'+(advice?'<p class="serve-tip">'+advice+"</p>":"");
 }
-function bootLedger(){
-  readonlyMode=true;
-  currentUser={id:"supabase",name:"云端台账"};
+
+/* ---------- 登录 / 退出 ---------- */
+function showLogin(message){
+  $("appView").style.display="none";
+  $("drawerOverlay").classList.remove("show");
+  $("viewer").classList.remove("show");
+  $("authView").style.display="flex";
+  const form=$("loginForm");if(form)form.style.display="flex";
+  const hint=$("loginHint");if(hint)hint.style.display="block";
+  const rb=$("reloadBtn");if(rb)rb.style.display="none";
+  const desc=$("bootDesc");
+  if(desc)desc.innerHTML=message||"使用已授权的邮箱账号登录，查看设备台账与到期看板";
+  const ae=$("authError");if(ae)ae.textContent="";
+  const le=$("loginError");
+  if(le){le.textContent="";le.classList.remove("show");}
+  const btn=$("loginBtn");
+  if(btn){btn.disabled=false;btn.textContent="登录";}
+  const pwd=$("loginPassword");if(pwd)pwd.value="";
+  setTimeout(()=>{const em=$("loginEmail");if(em)em.focus();},80);
+}
+function enterApp(session){
+  const user=session&&session.user?session.user:null;
+  currentUser={id:(user&&user.id)||"user",name:(user&&user.email)||"已登录用户"};
+  const form=$("loginForm");if(form)form.style.display="none";
+  const hint=$("loginHint");if(hint)hint.style.display="none";
   $("authView").style.display="none";
   $("appView").style.display="block";
   const rb=$("reloadBtn");if(rb)rb.style.display="none";
   applyReadonlyUI();
+  loadData();   // 登录成功后重新拉取数据
+}
+function authErrorMessage(err){
+  const msg=String((err&&(err.message||err.error_description))||err||"登录失败");
+  const low=msg.toLowerCase();
+  if(low.indexOf("invalid login credentials")>=0)return "邮箱或密码不正确，请重新输入。";
+  if(low.indexOf("email not confirmed")>=0)return "邮箱尚未验证：请先点击 Supabase 发送的确认邮件，或在后台关闭邮箱验证。";
+  if(low.indexOf("too many requests")>=0||low.indexOf("rate limit")>=0)return "尝试过于频繁，请稍等几分钟再试。";
+  if(low.indexOf("failed to fetch")>=0||low.indexOf("network")>=0)return "网络连接失败，请检查网络或 Supabase 地址。";
+  return msg;
+}
+function togglePassword(){
+  const inp=$("loginPassword"),btn=$("togglePwd");
+  if(!inp||!btn)return;
+  const show=inp.type==="password";
+  inp.type=show?"text":"password";
+  btn.textContent=show?"隐藏":"显示";
+  btn.setAttribute("aria-label",show?"隐藏密码":"显示密码");
+}
+async function handleLogin(e){
+  if(e)e.preventDefault();
+  const emailEl=$("loginEmail"),pwdEl=$("loginPassword"),errBox=$("loginError"),btn=$("loginBtn");
+  const email=((emailEl&&emailEl.value)||"").trim();
+  const password=(pwdEl&&pwdEl.value)||"";
+  if(errBox){errBox.textContent="";errBox.classList.remove("show");}
+  if(!email||!password){
+    if(errBox){errBox.textContent="请输入邮箱和密码。";errBox.classList.add("show");}
+    return;
+  }
+  if(!supabaseClient){
+    if(errBox){errBox.textContent="Supabase 客户端未初始化，请刷新页面。";errBox.classList.add("show");}
+    return;
+  }
+  if(btn){btn.disabled=true;btn.textContent="登录中…";}
+  try{
+    const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    if(!data||!data.session)throw new Error("登录成功但未返回会话，请重试。");
+    enterApp(data.session);
+  }catch(err){
+    if(errBox){errBox.textContent=authErrorMessage(err);errBox.classList.add("show");}
+    if(btn){btn.disabled=false;btn.textContent="登录";}
+  }
+}
+async function doSignOut(){
+  const btn=$("logoutBtn");
+  if(btn){btn.disabled=true;btn.textContent="退出中…";}
+  try{
+    if(supabaseClient)await supabaseClient.auth.signOut();
+  }catch(e){
+    console.warn("[Auth] 退出登录请求失败：",e);
+  }
+  location.reload();   // 退出后刷新页面，回到登录卡片
+}
+
+/* ---------- 会话检查与启动 ---------- */
+async function checkSession(){
+  try{
+    const {data,error}=await supabaseClient.auth.getSession();
+    if(error)throw error;
+    if(data&&data.session&&data.session.user)enterApp(data.session);
+    else showLogin();
+  }catch(e){
+    console.error("[Auth] 读取登录状态失败：",e);
+    showFatalError("登录状态检查失败",supabaseErrorHTML(e));
+  }
+}
+function bootAuth(){
+  readonlyMode=true;
+  $("authView").style.display="flex";
+  $("appView").style.display="none";
   if(typeof supabase==="undefined"||!supabase||typeof supabase.createClient!=="function"){
     showFatalError("Supabase SDK 加载失败",
-      "未能从 CDN 加载 <code>@supabase/supabase-js@2</code>。请检查网络后刷新；若在离线内网，请把 SDK 下载到本地并修改 script 的 src。");
+      "未能从 CDN 加载 <code>@supabase/supabase-js@2</code>（含 Auth 模块）。请检查网络后刷新；若在离线内网，请把 SDK 下载到本地并修改 script 的 src。");
     return;
   }
   try{
-    supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+    supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+    });
   }catch(e){
     showFatalError("Supabase 初始化失败",supabaseErrorHTML(e));
     return;
   }
-  loadData();
+  // 其他标签页退出、令牌失效时会收到 SIGNED_OUT，回到登录卡片
+  supabaseClient.auth.onAuthStateChange((event)=>{
+    if(event==="SIGNED_OUT")showLogin("登录状态已失效，请重新登录");
+  });
+  checkSession();
 }
 
 /* ===================== Data ===================== */
@@ -694,6 +833,11 @@ async function loadData(){
     console.error("[Supabase] 查询失败：",err);
     allRows=[];
     updateFilterOptions();
+    const msg=String((err&&err.message)||"");
+    if((err&&String(err.code)==="PGRST301")||/jwt expired|invalid jwt|token is expired/i.test(msg)){
+      showLogin("登录已过期，请重新登录");
+      return;
+    }
     showFatalError("读取 ledger 表失败",supabaseErrorHTML(err));
   }
 }
@@ -1464,7 +1608,9 @@ function wirePhotoEvents(){
 
 /* ===================== Events ===================== */
 function wireEvents(){
-  // Supabase 匿名只读模式无需登录，原 loginBtn / copyLinkBtn / readonlyBtn / logoutBtn 绑定已移除
+  $("loginForm").addEventListener("submit",handleLogin);
+  $("togglePwd").addEventListener("click",togglePassword);
+  $("logoutBtn").addEventListener("click",doSignOut);
   $("addBtn").addEventListener("click",()=>openDrawer(null));
   $("refreshBtn").addEventListener("click",loadData);
   $("searchInput").addEventListener("input",e=>{keyword=e.target.value;render();});
@@ -1519,7 +1665,7 @@ function wireEvents(){
 /* ===================== Bootstrap ===================== */
 (function main(){
   wireEvents();
-  bootLedger();   // Supabase 模式：初始化客户端并查询 ledger 表
+  bootAuth();   // 先检查 Supabase 登录状态：已登录进看板，未登录显示登录卡片
 })();
 </script>
 </body>
