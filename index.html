@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>宝钢除尘特种设备台账与到期看板系统 </title>
+<script src="vendor/workbuddy-cloud-sdk.js"></script>
+<script src="vendor/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:#f4f6f9; --surface:#fff; --surface-2:#f8fafc; --border:#e3e8ef; --border-strong:#cfd7e3;
+    --text:#1f2937; --text-sub:#64748b; --text-faint:#94a3b8;
+    --primary:#1d4ed8; --primary-hover:#1e40af; --primary-soft:#eff4ff;
+    --red:#dc2626; --red-soft:#fef2f2; --amber:#d97706; --amber-soft:#fffbeb;
+    --green:#059669; --green-soft:#ecfdf5; --gray-soft:#f1f5f9;
+    --shadow:0 1px 3px rgba(16,24,40,.06),0 1px 2px rgba(16,24,40,.04);
+    --shadow-lg:0 12px 32px rgba(16,24,40,.14); --radius:12px;
+  }
+  *{box-sizing:border-box} html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button,input,select,textarea{font-family:inherit;font-size:inherit} button{cursor:pointer} a{color:var(--primary)}
+
+  /* Auth */
+  #authView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(1200px 600px at 50% -10%,#dbeafe 0%,transparent 60%),var(--bg)}
+  .auth-card{background:var(--surface);border:1px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);max-width:420px;width:100%;padding:44px 40px;text-align:center}
+  .brand-mark{width:56px;height:56px;margin:0 auto 18px;border-radius:16px;background:linear-gradient(135deg,#2563eb,#1e40af);display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(37,99,235,.28)}
+  .brand-mark svg{width:30px;height:30px;fill:#fff}
+  .auth-card h1{font-size:22px;margin:0 0 8px;letter-spacing:-.3px}
+  .auth-card p{color:var(--text-sub);margin:0 0 28px;font-size:14px}
+  .btn-primary-login{width:100%;background:var(--primary);color:#fff;border:none;border-radius:10px;padding:13px 18px;font-weight:600;font-size:15px;transition:background .15s}
+  .btn-primary-login:hover{background:var(--primary-hover)} .btn-primary-login:disabled{opacity:.6;cursor:not-allowed}
+  .auth-error{color:var(--red);font-size:13px;margin-top:14px;min-height:18px}
+  .btn-alt-login,.btn-readonly-login{width:100%;border:1px solid var(--border-strong);background:var(--surface);color:var(--text);border-radius:10px;padding:12px 16px;font-weight:600;font-size:14px;margin-top:10px;transition:border-color .15s,background .15s}
+  .btn-alt-login:hover,.btn-readonly-login:hover{border-color:var(--primary);background:var(--primary-soft)}
+  .btn-alt-login:disabled,.btn-readonly-login:disabled{opacity:.55;cursor:not-allowed}
+  .btn-readonly-login{border-style:dashed;color:var(--text-sub);font-weight:500}
+  .auth-or{display:flex;align-items:center;gap:10px;color:var(--text-faint);font-size:12px;margin:18px 0 2px}
+  .auth-or:before,.auth-or:after{content:"";flex:1;height:1px;background:var(--border)}
+  .link-box{margin-top:14px;text-align:left;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px}
+  .link-box p{font-size:12px;color:var(--text-sub);margin:0 0 8px;line-height:1.6}
+  .link-box textarea{width:100%;height:76px;resize:vertical;font-size:11px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);word-break:break-all}
+  .link-box-actions{display:flex;gap:8px;margin-top:8px}
+  .link-box-actions .btn{flex:1;min-height:38px;font-size:13px}
+  .readonly-badge{display:none;background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;white-space:nowrap}
+  .readonly-badge.show{display:inline-flex;align-items:center}
+  .readonly-tip{background:var(--amber-soft);border:1px solid var(--amber);color:var(--amber);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px}
+  .readonly-photo-note{color:var(--text-sub);font-size:13px;padding:14px;border:1px dashed var(--border-strong);border-radius:10px;background:var(--surface-2)}
+  .section-card{border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden}
+  .section-card-head{display:flex;align-items:center;gap:9px;padding:13px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);font-weight:700;font-size:14px}
+  .section-card-head .section-num{margin:0}
+  .section-card-body{padding:16px}
+  details.section-card>summary{cursor:pointer;list-style:none}
+  details.section-card>summary::-webkit-details-marker{display:none}
+  details.section-card>summary:after{content:"▾";margin-left:auto;color:var(--text-faint);font-size:12px}
+  details.section-card[open]>summary:after{content:"▴"}
+  .photo-subhead{grid-column:1/-1;font-size:12px;color:var(--text-sub);font-weight:600;margin:6px 0 2px;padding-top:10px;border-top:1px dashed var(--border)}
+
+  /* Shell */
+  #appView{display:none}
+  .topbar{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+  .topbar-inner{max-width:1360px;margin:0 auto;padding:0 28px;height:64px;display:flex;align-items:center;gap:14px}
+  .topbar .brand-mark{width:36px;height:36px;border-radius:10px;margin:0;flex:0 0 auto}
+  .topbar .brand-mark svg{width:20px;height:20px}
+  .topbar-title{font-size:17px;font-weight:700;letter-spacing:-.2px}
+  .topbar-sub{font-size:12px;color:var(--text-faint);font-weight:400}
+  .topbar-spacer{flex:1}
+  .user-chip{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--text-sub)}
+  .avatar{width:30px;height:30px;border-radius:50%;background:var(--primary-soft);color:var(--primary);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;object-fit:cover}
+  .icon-btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:7px 12px;color:var(--text-sub);font-size:13px;transition:all .15s}
+  .icon-btn:hover{border-color:var(--border-strong);color:var(--text);background:var(--surface-2)}
+  .main{max-width:1360px;margin:0 auto;padding:26px 28px 60px}
+
+  /* Stats */
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .stat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .stat.total::before{background:var(--primary)} .stat.expired::before{background:var(--red)}
+  .stat.soon::before{background:var(--amber)} .stat.ok::before{background:var(--green)}
+  .stat-label{font-size:13px;color:var(--text-sub);display:flex;align-items:center;gap:7px}
+  .stat-dot{width:8px;height:8px;border-radius:50%}
+  .stat.total .stat-dot{background:var(--primary)} .stat.expired .stat-dot{background:var(--red)}
+  .stat.soon .stat-dot{background:var(--amber)} .stat.ok .stat-dot{background:var(--green)}
+  .stat-value{font-size:30px;font-weight:750;margin-top:6px;letter-spacing:-1px}
+  .stat.total .stat-value{color:var(--primary)} .stat.expired .stat-value{color:var(--red)}
+  .stat.soon .stat-value{color:var(--amber)} .stat.ok .stat-value{color:var(--green)}
+  .stat-hint{font-size:12px;color:var(--text-faint);margin-top:2px}
+
+  /* Toolbar */
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .toolbar{display:flex;align-items:center;gap:12px;padding:16px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+  .tabs{display:flex;gap:4px;background:var(--gray-soft);padding:4px;border-radius:9px}
+  .tab{border:none;background:transparent;padding:7px 14px;border-radius:7px;font-size:13px;color:var(--text-sub);font-weight:500;transition:all .15s;white-space:nowrap}
+  .tab:hover{color:var(--text)} .tab.active{background:var(--surface);color:var(--primary);box-shadow:var(--shadow);font-weight:600}
+  .tab .count{font-size:11px;margin-left:5px;opacity:.7}
+  .toolbar-spacer{flex:1}
+  .search-wrap{position:relative}
+  .search-wrap svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);width:16px;height:16px;fill:var(--text-faint)}
+  .search-input{border:1px solid var(--border);border-radius:9px;padding:9px 12px 9px 35px;width:220px;outline:none;transition:border .15s,box-shadow .15s}
+  .search-input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+  .factory-select{border:1px solid var(--border);border-radius:9px;padding:9px 12px;outline:none;background:var(--surface);color:var(--text);min-width:130px;transition:border .15s,box-shadow .15s}
+  .factory-select:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+  .btn{border-radius:9px;padding:9px 16px;font-weight:600;font-size:13px;border:1px solid transparent;transition:all .15s;display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+  .btn svg{width:15px;height:15px;flex:0 0 auto}
+  .btn-primary{background:var(--primary);color:#fff} .btn-primary:hover{background:var(--primary-hover)} .btn-primary:disabled{opacity:.6;cursor:not-allowed}
+  .btn-ghost{background:var(--surface);color:var(--text-sub);border-color:var(--border)} .btn-ghost:hover{border-color:var(--border-strong);color:var(--text)}
+  .btn-danger{background:var(--red);color:#fff} .btn-danger:hover{background:#b91c1c}
+  .btn-danger-ghost{background:var(--surface);color:var(--red);border-color:#fecaca} .btn-danger-ghost:hover{background:var(--red-soft)}
+
+  /* Table */
+  .table-wrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;min-width:960px}
+  thead th{text-align:left;font-size:12px;color:var(--text-sub);font-weight:600;padding:12px 16px;background:var(--surface-2);border-bottom:1px solid var(--border);white-space:nowrap}
+  tbody td{padding:13px 16px;border-bottom:1px solid var(--border);vertical-align:middle}
+  tbody tr:last-child td{border-bottom:none} tbody tr:hover{background:#fafcff}
+  .dev-main{display:flex;align-items:center;gap:10px}
+  .dev-status-bar{width:4px;align-self:stretch;border-radius:3px;flex:0 0 auto;min-height:34px}
+  .dev-name{font-weight:600;color:var(--text)} .dev-no{font-size:12px;color:var(--text-faint);font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .dev-name-line{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .type-tag{display:inline-flex;align-items:center;font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px;white-space:nowrap;line-height:1.5}
+  .type-tag.special{background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe}
+  .type-tag.pressure{background:#ecfeff;color:#0e7490;border:1px solid #a5f3fc}
+  .update-time{font-size:12px;color:var(--text-sub);font-variant-numeric:tabular-nums;line-height:1.5}
+  .update-time .u-date{display:block;color:var(--text)} .update-time .u-time{display:block;color:var(--text-faint);font-size:11px}
+  .usage-tag{display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;white-space:nowrap}
+  .usage-tag.in-use{color:var(--green)} .usage-tag.in-use:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--green)}
+  .usage-tag.disabled{color:var(--text-faint)} .usage-tag.disabled:before{content:"";width:7px;height:7px;border-radius:50%;background:var(--border-strong)}
+  .badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .badge .bdot{width:6px;height:6px;border-radius:50%}
+  .badge.expired{background:var(--red-soft);color:var(--red)} .badge.expired .bdot{background:var(--red)}
+  .badge.soon{background:var(--amber-soft);color:var(--amber)} .badge.soon .bdot{background:var(--amber)}
+  .badge.ok{background:var(--green-soft);color:var(--green)} .badge.ok .bdot{background:var(--green)}
+  .badge.na{background:var(--gray-soft);color:var(--text-faint)}
+  .badge.invalid{background:var(--red-soft);color:var(--red);border:1px dashed #fca5a5}
+  .badge.invalid .bdot{background:var(--red)}
+  .date-cell{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+  .date-text{font-size:13px;font-variant-numeric:tabular-nums} .date-text.none{color:var(--text-faint)}
+  .thumb{width:40px;height:40px;border-radius:8px;object-fit:cover;border:1px solid var(--border);cursor:pointer;background:var(--gray-soft);display:block}
+  .thumb-empty{width:40px;height:40px;border-radius:8px;border:1px dashed var(--border-strong);display:flex;align-items:center;justify-content:center;color:var(--text-faint)}
+  .thumb-empty svg,.thumb svg{width:18px;height:18px;fill:currentColor}
+  .row-actions{display:flex;gap:6px}
+  .mini-btn{border:1px solid var(--border);background:var(--surface);border-radius:7px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;color:var(--text-sub);transition:all .15s}
+  .mini-btn:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft)}
+  .mini-btn.del:hover{border-color:var(--red);color:var(--red);background:var(--red-soft)}
+  .mini-btn svg{width:15px;height:15px}
+
+  /* States */
+  .state-box{padding:72px 20px;text-align:center;color:var(--text-sub)}
+  .state-box svg{width:52px;height:52px;fill:#cbd5e1;margin-bottom:14px}
+  .state-box h3{margin:0 0 6px;font-size:16px;color:var(--text)} .state-box p{margin:0;font-size:13px;color:var(--text-faint)}
+  .spinner{width:22px;height:22px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .table-note{padding:10px 18px;font-size:12px;color:var(--text-faint);border-top:1px solid var(--border);background:var(--surface-2)}
+
+  /* Modal (import) */
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-start;justify-content:center;padding:40px 20px;z-index:50;overflow-y:auto}
+  .overlay.show{display:flex}
+  .modal{background:var(--surface);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:680px;margin:auto;animation:pop .18s ease-out}
+  .modal.wide{max-width:900px}
+  @keyframes pop{from{transform:translateY(10px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+  .modal-head h2{margin:0;font-size:18px}
+  .close-x{border:none;background:transparent;font-size:22px;color:var(--text-faint);width:32px;height:32px;border-radius:8px;line-height:1}
+  .close-x:hover{background:var(--gray-soft);color:var(--text)}
+  .modal-body{padding:22px 24px}
+  .modal-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .save-error{color:var(--red);font-size:13px;margin-right:auto;display:none;align-self:center} .save-error.show{display:block}
+
+  /* Import */
+  .import-intro{font-size:13px;color:var(--text-sub);line-height:1.7;margin:0 0 14px}
+  .import-intro code{background:var(--gray-soft);padding:1px 6px;border-radius:4px;color:var(--text);font-size:12px}
+  .import-summary{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .chip{background:var(--gray-soft);border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600}
+  .chip.ok{background:var(--green-soft);color:var(--green)} .chip.warn{background:var(--amber-soft);color:var(--amber)} .chip.err{background:var(--red-soft);color:var(--red)}
+  .mapping-box{background:var(--primary-soft);border:1px solid #dbeafe;border-radius:10px;padding:12px 14px;margin-bottom:14px}
+  .mapping-box h4{margin:0 0 8px;font-size:12px;color:var(--primary)}
+  .mapping-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px 16px;font-size:12px;color:var(--text-sub)}
+  .mapping-grid b{color:var(--text);font-weight:600}
+  .preview-scroll{overflow:auto;max-height:300px;border:1px solid var(--border);border-radius:10px}
+  .preview-table{width:100%;border-collapse:collapse;font-size:12px}
+  .preview-table th{background:var(--surface-2);padding:9px 10px;text-align:left;position:sticky;top:0;white-space:nowrap;border-bottom:1px solid var(--border)}
+  .preview-table td{padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+  .preview-table tr:last-child td{border-bottom:none}
+  .import-errors{margin-top:14px;max-height:150px;overflow:auto}
+  .import-errors h4{margin:0 0 8px;font-size:13px;color:var(--red)}
+  .import-errors ul{margin:0;padding-left:18px;font-size:12px;color:var(--text-sub)} .import-errors li{margin-bottom:3px}
+  .no-image-note{display:inline-block;margin-top:8px;color:var(--red);font-size:12px}
+  .batch-summary{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+  .batch-ok{color:var(--green);font-weight:600} .batch-fail{color:var(--red);font-weight:600}
+  .batch-list{font-size:12px;color:var(--text-sub);line-height:1.8;max-height:240px;overflow:auto}
+  .batch-list b{color:var(--text)}
+  .check-line{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);margin-top:14px;cursor:pointer;user-select:none}
+  .check-line input{width:16px;height:16px;accent-color:var(--primary)}
+
+  /* Drawer */
+  .drawer-overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;z-index:60}
+  .drawer-overlay.show{display:block}
+  .drawer{position:absolute;right:0;top:0;bottom:0;width:min(760px,100%);background:var(--surface);display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:slideIn .22s ease-out}
+  @keyframes slideIn{from{transform:translateX(28px);opacity:.5}to{transform:none;opacity:1}}
+  .drawer-head{display:flex;align-items:flex-start;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--border)}
+  .drawer-head h2{margin:0;font-size:18px} .drawer-sub{font-size:12px;color:var(--text-faint);margin-top:3px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .drawer-body{flex:1;overflow-y:auto;padding:20px 24px}
+  .drawer-foot{display:flex;justify-content:flex-end;gap:10px;padding:16px 24px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px}
+  .field{display:flex;flex-direction:column;gap:5px}
+  .field.full{grid-column:1/-1}
+  .field label{font-size:12px;font-weight:600;color:var(--text-sub)}
+  .field label .req{color:var(--red);margin-left:2px}
+  .field input,.field select,.field textarea{border:1px solid var(--border);border-radius:8px;padding:9px 11px;outline:none;transition:border .15s,box-shadow .15s;background:var(--surface);color:var(--text);width:100%}
+  .field input:focus,.field select:focus,.field textarea:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(29,78,216,.1)}
+  .field input.invalid,.field select.invalid{border-color:var(--red);background:var(--red-soft)}
+  .field .err{font-size:11px;color:var(--red);display:none} .field .err.show{display:block}
+  .section-title{grid-column:1/-1;font-size:12px;font-weight:700;color:var(--primary);padding-top:12px;border-top:1px dashed var(--border);margin-top:2px;display:flex;align-items:center;gap:7px}
+  .section-title:first-child{border-top:none;padding-top:0}
+  .section-num{background:var(--primary-soft);border-radius:6px;padding:1px 7px;font-size:11px}
+  .photo-card{grid-column:1/-1;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:var(--surface-2)}
+  .photo-card-head{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px}
+  .photo-field{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .photo-preview{width:84px;height:84px;border-radius:10px;object-fit:cover;border:1px solid var(--border);background:var(--gray-soft);display:none}
+  .photo-preview.show{display:block}
+  .photo-placeholder{width:84px;height:84px;border-radius:10px;border:1px dashed var(--border-strong);display:flex;align-items:center;justify-content:center;color:var(--text-faint);flex-direction:column;gap:4px}
+  .photo-placeholder svg{width:22px;height:22px;fill:currentColor} .photo-placeholder span{font-size:10px}
+  .photo-actions{display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+  .compress-info{font-size:11px;color:var(--green);display:none;max-width:320px} .compress-info.show{display:block}
+  .compress-info.err{color:var(--red)}
+  .file-input{display:none}
+
+  /* Viewer */
+  #viewer{position:fixed;inset:0;background:rgba(15,23,42,.8);z-index:80;display:none;align-items:center;justify-content:center;padding:30px}
+  #viewer.show{display:flex} #viewer img{max-width:100%;max-height:88vh;border-radius:10px;box-shadow:var(--shadow-lg)}
+  .viewer-close{position:absolute;top:20px;right:24px;color:#fff;font-size:30px;background:rgba(255,255,255,.12);border:none;width:42px;height:42px;border-radius:50%;line-height:1}
+  .viewer-close:hover{background:rgba(255,255,255,.22)}
+
+  /* Toast */
+  #toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(20px);background:#1e293b;color:#fff;padding:11px 20px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:all .25s;z-index:100;max-width:90vw}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0)} #toast.ok{background:#065f46} #toast.err{background:#991b1b}
+
+  /* Responsive */
+  @media(max-width:860px){.stats{grid-template-columns:repeat(2,1fr)}.main{padding:18px 14px 50px}.topbar-inner{padding:0 14px}.toolbar{padding:12px}.search-input{width:100%}.form-grid{grid-template-columns:1fr}.topbar-sub{display:none}}
+  @media(max-width:640px){
+    body{font-size:15px}
+    .stats{gap:10px;margin-bottom:14px}.stat{padding:14px}.stat-value{font-size:26px}.stat-hint{font-size:11px}
+    .toolbar{gap:10px}.tabs{width:100%;overflow-x:auto}.tab{flex:1 0 auto;text-align:center}
+    .search-wrap{width:100%}.search-input{width:100%}.factory-select{width:100%}
+    .toolbar .btn{flex:1 1 auto;justify-content:center;min-height:44px}
+    .topbar-title{font-size:15px}.user-chip span{display:none}.icon-btn{padding:9px 12px;min-height:40px}
+    table,thead,tbody,tr,td{display:block;width:100%}thead{display:none}.table-wrap{overflow-x:visible}table{min-width:0}
+    tbody tr{border:1px solid var(--border);border-radius:12px;margin:12px;padding:12px 14px;box-shadow:var(--shadow);background:var(--surface)}
+    tbody td{border:none;padding:8px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px dashed var(--border)}
+    tbody td:last-child{border-bottom:none}
+    tbody td::before{content:attr(data-label);color:var(--text-faint);font-size:12px;font-weight:600;flex:0 0 80px}
+    .dev-main{flex:1;min-width:0}.dev-status-bar{min-height:38px}.dev-name{font-size:15px}
+    .date-cell{align-items:flex-end}.thumb,.thumb-empty{width:46px;height:46px}
+    .row-actions .mini-btn{width:44px;height:44px}.row-actions{gap:10px}
+    .modal{max-width:100%}.overlay{padding:12px}.modal-head,.modal-body,.modal-foot{padding-left:16px;padding-right:16px}
+    .field input,.field select,.field textarea{padding:12px}.btn{min-height:44px}.chip{font-size:12px}
+    .drawer{width:100%}.drawer-head,.drawer-body,.drawer-foot{padding-left:16px;padding-right:16px}
+    .mapping-grid{grid-template-columns:1fr}
+    #viewer{padding:12px}.viewer-close{width:48px;height:48px;top:14px;right:14px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ AUTH ============ -->
+<div id="authView">
+  <div class="auth-card">
+    <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
+    <h1>宝钢除尘特种设备台账与到期看板系统</h1>
+    <p>储气罐 · 安全阀 · 压力表 检验到期一站式管理<br>登录后管理台账，或免登录只读查看</p>
+    <button class="btn-primary-login" id="loginBtn" disabled>使用 WorkBuddy 登录（自动跳转）</button>
+    <button class="btn-alt-login" id="copyLinkBtn" disabled>复制授权链接（手动打开）</button>
+    <div class="link-box" id="linkBox" style="display:none;">
+      <p>已生成授权链接，请复制后粘贴到<strong>任意浏览器地址栏</strong>打开并完成授权。授权成功后会自动回到本台账。</p>
+      <textarea id="authLinkText" readonly spellcheck="false"></textarea>
+      <div class="link-box-actions">
+        <button class="btn btn-primary" id="copyLinkConfirm">复制链接</button>
+        <button class="btn btn-ghost" id="linkBoxClose">收起</button>
+      </div>
+    </div>
+    <div class="auth-or">或</div>
+    <button class="btn-readonly-login" id="readonlyBtn" disabled>免登录只读查看台账</button>
+    <div class="auth-error" id="authError"></div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appView">
+  <div class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
+      <div><div class="topbar-title">宝钢除尘特种设备台账与到期看板系统</div><div class="topbar-sub">特种设备 / 简单压力容器 · V3 全量台账</div></div>
+      <div class="topbar-spacer"></div>
+      <div class="readonly-badge" id="readonlyBadge">只读模式</div>
+      <div class="user-chip"><div class="avatar" id="avatar">—</div><span id="userName">—</span></div>
+      <button class="icon-btn" id="logoutBtn">退出</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="readonly-tip" id="readonlyTip" style="display:none;">当前为<strong>免登录只读模式</strong>：可查看台账与到期状态，新增 / 编辑 / 删除 / 导入 / 照片上传不可用。如需修改，请点右上角「登录编辑」。</div>
+    <div class="stats">
+      <div class="stat total"><div class="stat-label"><span class="stat-dot"></span>设备总数</div><div class="stat-value" id="statTotal">0</div><div class="stat-hint">台账内全部设备</div></div>
+      <div class="stat expired"><div class="stat-label"><span class="stat-dot"></span>已过期</div><div class="stat-value" id="statExpired">0</div><div class="stat-hint">需尽快现场核查</div></div>
+      <div class="stat soon"><div class="stat-label"><span class="stat-dot"></span>30天内临期</div><div class="stat-value" id="statSoon">0</div><div class="stat-hint">≤30天，本周关注</div></div>
+      <div class="stat ok"><div class="stat-label"><span class="stat-dot"></span>检验有效</div><div class="stat-value" id="statOk">0</div><div class="stat-hint">距到期 &gt;30天</div></div>
+    </div>
+    <div class="panel">
+      <div class="toolbar">
+        <div class="tabs" id="tabs">
+          <button class="tab active" data-filter="all">全部<span class="count" id="tabCountAll">0</span></button>
+          <button class="tab" data-filter="expired">过期<span class="count" id="tabCountExpired">0</span></button>
+          <button class="tab" data-filter="soon">临期<span class="count" id="tabCountSoon">0</span></button>
+          <button class="tab" data-filter="ok">正常<span class="count" id="tabCountOk">0</span></button>
+        </div>
+        <select class="factory-select" id="deptFilter" title="按使用部门筛选"><option value="">使用部门</option></select>
+        <select class="factory-select" id="inspectorFilter" title="按责任点检筛选"><option value="">责任点检</option></select>
+        <div class="toolbar-spacer"></div>
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.47 6.47 0 0016 9.5a6.5 6.5 0 10-6.5 6.5c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input class="search-input" id="searchInput" placeholder="搜索设备名称 / 编号" />
+        </div>
+        <button class="btn btn-ghost" id="batchPhotoBtn" title="按文件名匹配设备编号，批量上传铭牌照片并压缩">
+          <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>批量上传图片
+        </button>
+        <input type="file" class="file-input" id="batchPhotoInput" accept="image/*" multiple />
+        <button class="btn btn-ghost" id="importBtn" title="从 Excel 全量导入">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h10v2H7zm0-4h10v2H7zm0 8h7v2H7z"/></svg>导入 Excel
+        </button>
+        <input type="file" class="file-input" id="excelInput" accept=".xlsx,.xls" />
+        <button class="btn btn-ghost" id="refreshBtn" title="刷新数据">
+          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.96 7.96 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>刷新
+        </button>
+        <button class="btn btn-primary" id="addBtn">
+          <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>新增设备
+        </button>
+      </div>
+      <div id="tableArea">
+        <div class="state-box" id="loadingState"><div class="spinner"></div><p>正在加载台账数据…</p></div>
+        <div class="table-wrap" id="tableWrap" style="display:none;">
+          <table>
+            <thead><tr>
+              <th>设备名称 / 编号</th><th>台账更新日期</th><th>储气罐检验</th><th>安全阀检验</th><th>压力表检验</th><th>设备状态</th><th>状态</th><th>照片</th><th>操作</th>
+            </tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+          <div class="table-note" id="tableNote"></div>
+        </div>
+        <div class="state-box" id="emptyState" style="display:none;">
+          <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h10v2H7zm0-4h10v2H7zm0 8h7v2H7z"/></svg>
+          <h3>暂无数据</h3><p id="emptyHint">点击右上角「导入 Excel」或「新增设备」开始建立台账</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ DETAIL DRAWER ============ -->
+<div class="drawer-overlay" id="drawerOverlay">
+  <aside class="drawer">
+    <div class="drawer-head">
+      <div><h2 id="drawerTitle">设备详情</h2><div class="drawer-sub" id="drawerSub"></div></div>
+      <button class="close-x" id="drawerClose">&times;</button>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+    <div class="drawer-foot">
+      <div class="save-error" id="drawerError">保存失败，已填写内容已保留，请重试。</div>
+      <button class="btn btn-ghost" id="drawerCancel">取消</button>
+      <button class="btn btn-primary" id="drawerSave">保存</button>
+    </div>
+  </aside>
+</div>
+
+<!-- ============ BATCH PHOTO UPLOAD RESULT ============ -->
+<div class="overlay" id="batchResultOverlay">
+  <div class="modal">
+    <div class="modal-head"><h2>批量图片上传结果</h2><button class="close-x" id="batchResultClose">&times;</button></div>
+    <div class="modal-body" id="batchResultBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-primary" id="batchResultOk">知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ IMPORT PREVIEW ============ -->
+<div class="overlay" id="importOverlay">
+  <div class="modal wide">
+    <div class="modal-head"><h2>Excel 全量导入预览</h2><button class="close-x" id="importClose">&times;</button></div>
+    <div class="modal-body">
+      <p class="import-intro">
+        读取<strong>第一个工作表第一行作为表头</strong>，按表头文字自动识别全部列（含 3 个「检修标准」、3 个「下次检验日期」、2 个「照片」按出现顺序区分）。
+        必填：<code>设备编号</code><code>设备名称</code><code>所属分厂</code>。新增识别列 <code>设备种类</code>（特种设备/简单压力容器，缺省按特种设备）、<code>设备状态</code>（在用/停用，缺省按在用）；简单压力容器的容积、介质等独有字段允许为空。日期支持 Excel 序列号、6 位年月（如 <code>202811</code>→2028-11-01）、8 位 <code>20260409</code>、<code>2026-04-09 00:00:00</code> 等。<br><strong class="no-image-note">Excel 导入仅支持文字数据，图片请导入后使用批量上传功能</strong>（Excel 底层图片无法被直接解析入库，这是业界统一做法；批量上传入口在列表页右上角「批量上传图片」，按图片文件名匹配设备编号，自动存为储气罐铭牌照片）。
+      </p>
+      <div class="mapping-box" id="mappingBox"></div>
+      <div class="import-summary" id="importSummary"></div>
+      <div class="preview-scroll" id="previewScroll"></div>
+      <div class="import-errors" id="importErrors"></div>
+      <label class="check-line"><input type="checkbox" id="clearBeforeImport" checked /> 导入前清空当前台账（推荐：重新导入完整 Excel 时勾选，避免重复记录）</label>
+    </div>
+    <div class="modal-foot">
+      <div class="save-error" id="importError" style="display:none;"></div>
+      <button class="btn btn-ghost" id="importCancel">取消</button>
+      <button class="btn btn-primary" id="importConfirm">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ VIEWER ============ -->
+<div id="viewer"><button class="viewer-close" id="viewerClose">&times;</button><img id="viewerImg" alt="设备照片" /></div>
+<div id="toast"></div>
+
+<script>
+/* ===================== Cloud init ===================== */
+const publicConfig = {
+  endpoint:"https://equipment-ledger-10464.app.workbuddy.host",
+  oauthRelayBaseUrl:"https://www.workbuddy.cn/v2/as/genie-baas/oauth",
+  publishableKey:"wbpk_LhuOlLspcsz7bkdOLkFMlj_mCw0mOsRIAwmRYclvtjtFPEIj2ahVPoB"
+};
+const TABLE = "equipment_ledger";
+let cloud = null, currentUser = null;
+const $ = id => document.getElementById(id);
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+function toast(msg,type){const t=$("toast");t.textContent=msg;t.className="show"+(type?" "+type:"");clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className="";},2800);}
+
+/* ===================== Date helpers ===================== */
+function dayDiff(dateStr){
+  if(!dateStr) return null;
+  const m=String(dateStr).match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if(!m) return null;
+  const y=+m[1],mo=+m[2],da=+m[3];
+  if(!isFinite(y)||!isFinite(mo)||!isFinite(da)) return null;
+  if(y<1900||y>2100||mo<1||mo>12||da<1||da>31) return null;
+  const target=new Date(y,mo-1,da);
+  if(isNaN(target.getTime())) return null;
+  if(target.getFullYear()!==y||target.getMonth()!==mo-1||target.getDate()!==da) return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  return Math.round((target-today)/86400000);
+}
+const MAX_REASONABLE_DAYS=3650;
+function statusOf(dateStr){
+  const diff=dayDiff(dateStr);
+  if(diff===null) return {key:"invalid",label:"日期异常",diff:null};
+  if(Math.abs(diff)>MAX_REASONABLE_DAYS) return {key:"invalid",label:"日期异常",diff:null};
+  if(diff<0) return {key:"expired",label:"已过期 "+(-diff)+" 天",diff};
+  if(diff<=30) return {key:"soon",label:diff===0?"今天到期":"剩 "+diff+" 天",diff};
+  return {key:"ok",label:"剩 "+diff+" 天",diff};
+}
+const RANK={expired:3,soon:2,ok:1,na:0,invalid:0};
+function deviceStatus(row){
+  const s=[statusOf(row.tank_date),statusOf(row.safety_valve_date),statusOf(row.pressure_gauge_date)];
+  let best=s[0];for(const x of s) if(RANK[x.key]>RANK[best.key]) best=x;
+  return best;
+}
+
+/* ===================== Auth ===================== */
+const PKCE_KEY="workbuddy-cloud.pkce.workbuddy."+publicConfig.publishableKey;
+const READONLY_KEY="equipmentLedger.readonly.v1";
+let readonlyMode=false;
+function setAuthButtonsDisabled(disabled){
+  ["loginBtn","copyLinkBtn","readonlyBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=disabled;});
+}
+function initSDK(){
+  cloud=WorkBuddyCloud.createWorkBuddyCloud({endpoint:publicConfig.endpoint,oauthRelayBaseUrl:publicConfig.oauthRelayBaseUrl,publishableKey:publicConfig.publishableKey});
+  setAuthButtonsDisabled(false);
+}
+// The OAuth relay forwards callback_url verbatim. Embedding the PKCE verifier in it
+// makes the copied authorization link work in any browser/tab, not just the originating one.
+async function buildAuthUrl(){
+  const back=new URL(location.href);
+  back.pathname="/";
+  ["code","state","provider","error","error_description","wb_pkce"].forEach(k=>back.searchParams.delete(k));
+  const {data,error}=await cloud.auth.signInWithOAuth({provider:"workbuddy",redirectTo:back.toString()});
+  if(error) throw error;
+  if(!data||!data.url) throw new Error("授权服务未返回跳转地址");
+  const authUrl=new URL(data.url);
+  const cbRaw=authUrl.searchParams.get("callback_url");
+  if(!cbRaw) throw new Error("授权链接缺少回调地址");
+  const cb=new URL(cbRaw);
+  let verifier="";try{verifier=sessionStorage.getItem(PKCE_KEY)||"";}catch(e){}
+  cb.searchParams.set("wb_pkce",verifier);
+  authUrl.searchParams.set("callback_url",cb.toString());
+  return authUrl.toString();
+}
+async function restoreAuth(){
+  try{
+    const url=new URL(location.href);
+    const pkce=url.searchParams.get("wb_pkce");
+    if(pkce){try{sessionStorage.setItem(PKCE_KEY,pkce);}catch(e){}url.searchParams.delete("wb_pkce");}
+    const hasCb=url.searchParams.has("code")||url.searchParams.has("error");
+    if(!hasCb){
+      const {data:session}=await cloud.auth.getSession();
+      if(session&&session.user){enterApp(session);return;}
+      let saved=false;try{saved=localStorage.getItem(READONLY_KEY)==="1";}catch(e){}
+      if(saved) enterReadonly();
+      return;
+    }
+    if(url.searchParams.get("error")){
+      $("authError").textContent="授权被拒绝："+(url.searchParams.get("error_description")||url.searchParams.get("error"));
+      $("authView").style.display="flex";$("appView").style.display="none";return;
+    }
+    if(url.searchParams.get("provider")!=="workbuddy"){$("authError").textContent="登录回调无效，请重新登录。";return;}
+    const handler=cloud.auth.handleWorkBuddyCallback;
+    if(typeof handler!=="function"){$("authError").textContent="登录组件未就绪，请刷新后重试。";return;}
+    const {data:session,error}=await handler.call(cloud.auth);
+    if(error){$("authError").textContent=error.message||"登录失败";return;}
+    if(session){["code","state","provider"].forEach(k=>url.searchParams.delete(k));history.replaceState(null,"",url.pathname+url.search+url.hash);enterApp(session);}
+    else $("authError").textContent="登录未完成，请重试。";
+  }catch(e){$("authError").textContent="登录状态读取失败，请刷新重试。";}
+}
+async function doLogin(){
+  setAuthButtonsDisabled(true);$("authError").textContent="";
+  try{
+    const url=await buildAuthUrl();
+    // Some embedded clients block top-level navigation. If we are still here after
+    // 2s, surface the same URL so the user can copy it manually.
+    setTimeout(()=>{
+      try{
+        if((document.visibilityState||"visible")!=="hidden"&&$("linkBox").style.display!=="block"){
+          $("authLinkText").value=url;$("linkBox").style.display="block";
+          toast("若页面未跳转，请复制下方链接手动打开","err");
+        }
+      }catch(e){}
+    },2000);
+    location.assign(url);
+  }catch(e){$("authError").textContent=(e&&e.message?e.message:"登录发起失败，请重试。");setAuthButtonsDisabled(false);}
+}
+async function doCopyLink(){
+  setAuthButtonsDisabled(true);$("authError").textContent="";
+  try{
+    const url=await buildAuthUrl();
+    $("authLinkText").value=url;$("linkBox").style.display="block";
+    try{await navigator.clipboard.writeText(url);toast("授权链接已复制，请粘贴到浏览器打开","ok");}
+    catch(e){const ta=$("authLinkText");ta.focus();ta.select();toast("请全选下方链接手动复制","ok");}
+  }catch(e){$("authError").textContent=(e&&e.message?e.message:"生成授权链接失败，请重试。");}
+  finally{setAuthButtonsDisabled(false);}
+}
+async function copyAuthLink(){
+  const text=$("authLinkText").value;if(!text)return;
+  try{await navigator.clipboard.writeText(text);toast("已复制授权链接","ok");}
+  catch(e){const ta=$("authLinkText");ta.focus();ta.select();toast("请全选链接后手动复制","ok");}
+}
+function resetAvatar(){
+  const cur=$("avatar");
+  if(cur&&cur.tagName==="IMG"){
+    const d=document.createElement("div");d.className="avatar";d.id="avatar";d.textContent="—";
+    cur.replaceWith(d);
+  }
+}
+function enterReadonly(){
+  readonlyMode=true;currentUser={id:"readonly",name:"只读访客"};
+  try{localStorage.setItem(READONLY_KEY,"1");}catch(e){}
+  applyReadonlyUI();
+  $("authView").style.display="none";$("appView").style.display="block";loadData();
+}
+function applyReadonlyUI(){
+  const on=readonlyMode;
+  resetAvatar();
+  $("readonlyBadge").classList.toggle("show",on);
+  $("readonlyTip").style.display=on?"block":"none";
+  const name=on?"只读访客":((currentUser&&currentUser.name)||"用户");
+  $("userName").textContent=name;
+  const av=$("avatar");if(av)av.textContent=on?"只":name.slice(0,1).toUpperCase();
+  $("logoutBtn").textContent=on?"登录编辑":"退出";
+  $("importBtn").style.display=on?"none":"";
+  $("batchPhotoBtn").style.display=on?"none":"";
+  $("addBtn").style.display=on?"none":"";
+}
+async function doLogout(){
+  if(readonlyMode){
+    readonlyMode=false;currentUser=null;
+    try{localStorage.removeItem(READONLY_KEY);}catch(e){}
+  }else{
+    try{await cloud.auth.signOut();}catch(e){}
+    currentUser=null;
+  }
+  applyReadonlyUI();
+  $("appView").style.display="none";$("authView").style.display="flex";
+  $("linkBox").style.display="none";$("authError").textContent="";
+}
+function enterApp(session){
+  if(!session||!session.user){$("authView").style.display="flex";$("appView").style.display="none";return;}
+  readonlyMode=false;
+  try{localStorage.removeItem(READONLY_KEY);}catch(e){}
+  currentUser=session.user;
+  const name=currentUser.name||"用户";
+  applyReadonlyUI();
+  if(currentUser.avatarUrl){
+    const img=document.createElement("img");img.id="avatar";img.src=currentUser.avatarUrl;img.className="avatar";img.alt="";
+    img.onerror=()=>{const d=document.createElement("div");d.id="avatar";d.className="avatar";d.textContent=name.slice(0,1).toUpperCase();img.replaceWith(d);};
+    const old=$("avatar");if(old)old.replaceWith(img);
+  }
+  $("authView").style.display="none";$("appView").style.display="block";loadData();
+}
+
+/* ===================== Data ===================== */
+let allRows=[],filter="all",keyword="",deptFilter="",inspectorFilter="",photoUrls={};
+const PHOTO_KEYS=["photo_nameplate","photo_use_mark","photo_use_reg_cert","photo_overdesign_reg_cert","photo_shenban_code","photo_label","photo_dial","photo_inlet_dn","photo_outlet_dn","photo_outlet_length","photo_frost_protection","photo_pipe","photo_pipe_2","photo_path"];
+async function loadData(){
+  $("loadingState").style.display="block";$("tableWrap").style.display="none";$("emptyState").style.display="none";
+  try{
+    const table=readonlyMode?"equipment_ledger_readonly":TABLE;
+    const {data,error}=await cloud.database.from(table).select("*").order("created_at",{ascending:false});
+    if(error) throw error;
+    allRows=Array.isArray(data)?data:[];
+    if(readonlyMode) photoUrls={}; else await loadPhotoUrls();
+    updateFilterOptions();render();
+  }catch(e){
+    $("loadingState").style.display="none";$("emptyState").style.display="block";
+    $("emptyState").querySelector("h3").textContent="加载失败";
+    $("emptyHint").textContent="网络异常，数据加载失败，请点击「刷新」重试。";
+    toast("数据加载失败，请检查网络后刷新","err");
+  }
+}
+function fillSelect(id,values,cur,emptyLabel){
+  const sel=$(id);
+  sel.innerHTML=`<option value="">${emptyLabel}</option>`+values.map(v=>`<option value="${esc(v)}"${v===cur?" selected":""}>${esc(v)}</option>`).join("");
+  if(cur&&!values.includes(cur)){sel.value="";return "";}
+  return cur;
+}
+function updateFilterOptions(){
+  const pick=(field)=>[...new Set(allRows.map(r=>r[field]).filter(Boolean).map(v=>String(v).trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"zh-CN"));
+  deptFilter=fillSelect("deptFilter",pick("use_dept"),deptFilter,"使用部门");
+  inspectorFilter=fillSelect("inspectorFilter",pick("inspector"),inspectorFilter,"责任点检");
+}
+async function loadPhotoUrls(){
+  photoUrls={};
+  const paths=[...new Set(allRows.flatMap(r=>PHOTO_KEYS.map(k=>r[k]).filter(Boolean)))];
+  if(!paths.length) return;
+  try{
+    const res=await cloud.storage.createSignedUrls(paths,3600);
+    if(res&&!res.error&&Array.isArray(res.data)){
+      res.data.forEach(item=>{
+        if(!item) return;
+        const p=item.path,u=(typeof item==="string")?item:(item.signedUrl||item.signed_url||item.url);
+        if(p&&u) photoUrls[p]=u;
+      });
+    }
+  }catch(e){}
+}
+async function getPhotoUrl(path){
+  if(photoUrls[path]) return photoUrls[path];
+  try{
+    const res=await cloud.storage.createSignedUrl(path,600),d=res&&res.data;
+    const u=(typeof d==="string")?d:(d&&(d.signedUrl||d.signed_url||d.url));
+    if(u){photoUrls[path]=u;return u;}
+  }catch(e){}
+  return null;
+}
+function firstPhoto(r){for(const k of PHOTO_KEYS){if(r[k]&&photoUrls[r[k]]) return {path:r[k],url:photoUrls[r[k]]};}return null;}
+function firstPath(r){for(const k of PHOTO_KEYS){if(r[k]) return r[k];}return null;}
+// 设备种类：special=特种设备，pressure=简单压力容器。老数据 device_type 为 null 时按特种设备处理。
+function deviceKind(r){
+  const v=String(r.device_type||"").trim().toLowerCase();
+  if(v==="pressure"||v==="简单压力容器"||v==="简单压力容器"||v==="压力容器") return "pressure";
+  return "special";
+}
+function kindLabel(r){return deviceKind(r)==="pressure"?"简单压力容器":"特种设备";}
+// 设备状态：在用 / 停用。老数据为空时默认"在用"。
+function useState(r){
+  const v=String(r.equip_status||"").trim();
+  return v==="停用"?"停用":"在用";
+}
+// 台账更新日期：格式 YYYY-MM-DD HH:mm
+function fmtUpdated(v){
+  if(!v) return '<span class="update-time"><span class="u-date">—</span></span>';
+  const s=String(v).replace("T"," ");
+  const m=s.match(/(\d{4}-\d{2}-\d{2})[ ]?(\d{2}:\d{2})/);
+  if(m) return '<span class="update-time"><span class="u-date">'+esc(m[1])+'</span><span class="u-time">'+esc(m[2])+'</span></span>';
+  const d=s.slice(0,10);
+  return '<span class="update-time"><span class="u-date">'+esc(d)+'</span></span>';
+}
+
+/* ===================== Render ===================== */
+function computeStats(){
+  let expired=0,soon=0,ok=0;
+  allRows.forEach(r=>{const k=deviceStatus(r).key;if(k==="expired")expired++;else if(k==="soon")soon++;else if(k==="ok")ok++;});
+  return {total:allRows.length,expired,soon,ok};
+}
+function render(){
+  const st=computeStats();
+  $("statTotal").textContent=st.total;$("statExpired").textContent=st.expired;$("statSoon").textContent=st.soon;$("statOk").textContent=st.ok;
+  $("tabCountAll").textContent=st.total;$("tabCountExpired").textContent=st.expired;$("tabCountSoon").textContent=st.soon;$("tabCountOk").textContent=st.ok;
+  const q=keyword.trim().toLowerCase();
+  const rows=allRows.filter(r=>{
+    const k=deviceStatus(r).key;
+    if(filter!=="all"&&k!==filter) return false;
+    if(deptFilter&&String(r.use_dept||"")!==deptFilter) return false;
+    if(inspectorFilter&&String(r.inspector||"")!==inspectorFilter) return false;
+    if(q&&!((r.device_name||"").toLowerCase().includes(q)||(r.device_no||"").toLowerCase().includes(q))) return false;
+    return true;
+  });
+  rows.sort((a,b)=>RANK[deviceStatus(b).key]-RANK[deviceStatus(a).key]);
+  $("loadingState").style.display="none";
+  if(!rows.length){
+    $("tableBody").innerHTML="";
+    $("tableWrap").style.display="none";$("emptyState").style.display="block";
+    $("emptyState").querySelector("h3").textContent=allRows.length===0?"暂无数据":"没有符合条件的设备";
+    $("emptyHint").textContent=allRows.length===0
+      ?(readonlyMode?"台账暂无数据，可点右上角「登录编辑」登录后导入":"点击右上角「导入 Excel」或「新增设备」开始建立台账")
+      :"试试切换筛选条件、分厂或清空搜索关键词";
+    return;
+  }
+  $("emptyState").style.display="none";$("tableWrap").style.display="block";
+  $("tableBody").innerHTML=rows.map(r=>{
+    const dev=deviceStatus(r);
+    const color=dev.key==="expired"?"var(--red)":dev.key==="soon"?"var(--amber)":dev.key==="ok"?"var(--green)":"var(--border-strong)";
+    const kind=deviceKind(r),st=useState(r);
+    return `<tr>
+      <td data-label="设备"><div class="dev-main"><div class="dev-status-bar" style="background:${color}"></div><div><div class="dev-name-line"><span class="type-tag ${kind}">${kindLabel(r)}</span>${esc(r.device_name)}</div><div class="dev-no">${esc(r.device_no)}</div></div></div></td>
+      <td data-label="台账更新日期">${fmtUpdated(r.updated_at)}</td>
+      ${dateCell(r.tank_date,"储气罐")}${dateCell(r.safety_valve_date,"安全阀")}${dateCell(r.pressure_gauge_date,"压力表")}
+      <td data-label="设备状态"><span class="usage-tag ${st==="停用"?"disabled":"in-use"}">${st}</span></td>
+      <td data-label="状态"><span class="badge ${dev.key}"><span class="bdot"></span>${dev.label}</span></td>
+      ${photoCell(r)}
+      <td data-label="操作"><div class="row-actions">
+        <button class="mini-btn" title="${readonlyMode?"查看详情":"查看详情 / 编辑"}" onclick="openDrawer(${r.id})">${ICON.view}</button>
+        ${readonlyMode?"":`<button class="mini-btn del" title="删除" onclick="deleteRow(${r.id})">${ICON.del}</button>`}
+      </div></td>
+    </tr>`;
+  }).join("");
+  const scope=(deptFilter?" · 使用部门："+deptFilter:"")+(inspectorFilter?" · 责任点检："+inspectorFilter:"");
+  $("tableNote").textContent="共 "+rows.length+" 条记录"+scope+" · 红色=已过期，黄色=≤30天临期，绿色=检验有效，虚线红=日期异常（需核对原始数据） · 状态取三类检验中最紧急者";
+}
+function dateCell(dateStr,label){
+  const s=statusOf(dateStr);
+  const dateText=dateStr?esc(String(dateStr).slice(0,10)):'<span class="date-text none">—</span>';
+  return `<td data-label="${label}"><div class="date-cell">${dateStr?`<span class="date-text">${dateText}</span>`:dateText}<span class="badge ${s.key}"><span class="bdot"></span>${s.label}</span></div></td>`;
+}
+function photoCell(r){
+  const f=firstPhoto(r);
+  if(f) return `<td data-label="照片"><img class="thumb" src="${esc(f.url)}" title="查看照片" onclick="viewPhoto(${r.id})" /></td>`;
+  const p=firstPath(r);
+  if(p&&readonlyMode) return `<td data-label="照片"><div class="thumb-empty" title="登录后可查看照片">${ICON.camera}</div></td>`;
+  if(p) return `<td data-label="照片"><div class="thumb" title="点击查看照片" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-sub);" onclick="viewPhoto(${r.id})">${ICON.camera}</div></td>`;
+  return `<td data-label="照片"><div class="thumb-empty" title="无照片">${ICON.camera}</div></td>`;
+}
+const ICON={
+  view:'<svg viewBox="0 0 24 24"><path d="M12 5c-5.5 0-9.5 5.5-9.5 7s4 7 9.5 7 9.5-5.5 9.5-7-4-7-9.5-7zm0 11.5A4.5 4.5 0 1112 7.5a4.5 4.5 0 010 9zm0-7a2.5 2.5 0 100 5 2.5 2.5 0 000-5z"/></svg>',
+  edit:'<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>',
+  del:'<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>',
+  camera:'<svg viewBox="0 0 24 24"><path d="M9 4L7.17 6H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-3.17L15 4H9zm3 13a4.5 4.5 0 110-9 4.5 4.5 0 010 9z"/></svg>'
+};
+
+/* ===================== Field definitions (V4.1 dynamic section-one + common sections) ===================== */
+// device_type 表示「设备种类」(special/pressure)；原「设备品种」语义无损迁移到 device_variety。
+// 结构原则：只有「区块一」随设备种类切换；区块二~五为通用配件区块，两类设备始终完整展示。
+
+// 动态区块一 · 特种设备基础信息
+const SPECIAL_BASE={
+  id:"tank-base",title:"区块一 · 特种设备基础信息",fields:[
+    ["device_name","设备名称","text",true],["device_no","设备编号","text",true],
+    ["reg_code","设备注册代码","text"],["use_cert_no","使用证编号","text"],
+    ["manufacture_date","制造日期","date"],["design_life","设计使用年限","text"],
+    ["commission_date","投入使用日期","date"],["device_variety","设备品种","text"],
+    ["install_addr","设备安装地址","text"],["use_dept","设备使用部门","text"],
+    ["inspector","责任点检","text"],["equip_status","设备状态","status"]
+  ],photos:[
+    ["photo_nameplate","储气罐铭牌照片"],["photo_use_mark","使用标志照片"],
+    ["photo_use_reg_cert","使用登记证照片"],["photo_overdesign_reg_cert","超设计使用登记证照片"],
+    ["photo_shenban_code","随申办特设码照片"]
+  ]
+};
+// 动态区块一 · 简单压力容器基础信息（独有字段允许为空）
+const PRESSURE_BASE={
+  id:"pressure-base",title:"区块一 · 简单压力容器基础信息",fields:[
+    ["device_name","设备名称","text",true],["device_no","设备编号","text",true],
+    ["equip_status","设备状态","status"],["install_addr","设备安装地址","text"],
+    ["volume","容积m³","text"],["design_pressure","设计压力Mp","text"],
+    ["design_temp","设计温度℃","text"],["medium","介质","text"],
+    ["manufacture_date","制造日期","date"],["recommend_life","推荐使用寿命","text"],
+    ["archive_complete","档案是否齐全","yesno"]
+  ],photos:[
+    ["photo_nameplate","储气罐铭牌照片"]
+  ]
+};
+// 通用区块：储气罐 / 安全阀 / 压力表 / 管路，两类设备都完整展示
+const COMMON_GROUPS=[
+  {id:"tank-inspect",title:"区块二 · 储气罐检验信息",fields:[
+    ["tank_service_std","检修标准","text"],["tank_date","下次检验日期","date"]
+  ]},
+  {id:"valve-inspect",title:"区块三 · 安全阀检验信息",fields:[
+    ["valve_service_std","检修标准","text"],["safety_valve_date","下次检验日期","date"]
+  ],photos:[
+    ["photo_label","检验标牌照片"]
+  ]},
+  {id:"gauge-inspect",title:"区块四 · 压力表检验信息",fields:[
+    ["gauge_service_std","检修标准","text"],["pressure_gauge_date","下次检验日期","date"]
+  ],photos:[
+    ["photo_dial","表盘照片"]
+  ]},
+  {id:"pipe",title:"区块五 · 储气罐管路信息",fields:[
+    ["inlet_dn","入口管径","text"],["outlet_dn","出口管径","text"],
+    ["outlet_length","出口长度","text"],["frost_protection","防冻保温","text"]
+  ],photos:[
+    ["photo_inlet_dn","入口管径照片"],["photo_outlet_dn","出口管径照片"],
+    ["photo_outlet_length","出口长度照片"],["photo_frost_protection","防冻保温照片"]
+  ]}
+];
+// 当前设备种类对应的区块集合 = 动态区块一 + 全部通用区块
+function groupsForKind(kind){
+  const base=(kind==="pressure"?PRESSURE_BASE:SPECIAL_BASE);
+  return [base,...COMMON_GROUPS];
+}
+const SPECIAL_GROUPS=groupsForKind("special");
+const PRESSURE_GROUPS=groupsForKind("pressure");
+// 全部字段（两类并集，去重），用于导入/校验/回填兜底。
+const ALL_FIELDS=(function(){const m=new Map();[...SPECIAL_GROUPS,...PRESSURE_GROUPS].forEach(g=>g.fields.forEach(f=>{if(!m.has(f[0]))m.set(f[0],f);}));return [...m.values()];})();
+// 照片字段并集（去重），用于照片预览与事件绑定。
+const PHOTO_FIELDS=(function(){const m=new Map();[...SPECIAL_GROUPS,...PRESSURE_GROUPS].forEach(g=>(g.photos||[]).forEach(p=>{if(!m.has(p[0]))m.set(p[0],p);}));return [...m.values()];})();
+
+/* ===================== Image compression ===================== */
+function compressImage(file,maxWidth,quality){
+  maxWidth=maxWidth||800;quality=(typeof quality==="number")?quality:0.6;
+  return new Promise((resolve,reject)=>{
+    let objectUrl=null;
+    const cleanup=()=>{if(objectUrl)URL.revokeObjectURL(objectUrl);};
+    try{
+      objectUrl=URL.createObjectURL(file);
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const scale=Math.min(1,maxWidth/img.width);
+          const w=Math.max(1,Math.round(img.width*scale)),h=Math.max(1,Math.round(img.height*scale));
+          const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+          const ctx=canvas.getContext("2d");ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);
+          canvas.toBlob(blob=>{
+            cleanup();if(!blob){reject(new Error("图片压缩失败"));return;}
+            const base=(file.name||"photo").replace(/\.[^.]+$/,"");
+            resolve(new File([blob],base+".jpg",{type:"image/jpeg"}));
+          },"image/jpeg",quality);
+        }catch(e){cleanup();reject(e);}
+      };
+      img.onerror=()=>{cleanup();reject(new Error("图片解码失败"));};
+      img.src=objectUrl;
+    }catch(e){cleanup();reject(e);}
+  });
+}
+function fmtSize(b){if(b<1024)return b+" B";if(b<1024*1024)return(b/1024).toFixed(0)+" KB";return(b/1024/1024).toFixed(1)+" MB";}
+
+/* ===================== Excel parsing ===================== */
+const IMPORT_SPECS=[
+  {field:"seq",aliases:["序号"],type:"int"},
+  {field:"device_no",aliases:["设备编号","设备号","编号"],type:"text",required:true},
+  {field:"device_name",aliases:["设备名称","设备名","名称"],type:"text",required:true},
+  {field:"reg_code",aliases:["设备注册代码","注册代码"],type:"text"},
+  {field:"use_cert_no",aliases:["使用证编号","使用证号"],type:"text"},
+  {field:"manufacture_date",aliases:["制造日期"],type:"date"},
+  {field:"design_life",aliases:["设计使用年限","使用年限"],type:"text"},
+  {field:"commission_date",aliases:["投入使用日期","投用日期"],type:"date"},
+  {field:"tank_nameplate",aliases:["储气罐名牌","储气罐铭牌"],type:"text"},
+  {field:"use_mark",aliases:["使用标志"],type:"text"},
+  {field:"use_reg_cert",aliases:["使用登记证"],type:"text"},
+  {field:"overdesign_reg_cert",aliases:["超设计使用登记证"],type:"text"},
+  {field:"shenban_code",aliases:["随申办特设码","随申办码"],type:"text"},
+  {field:"device_variety",aliases:["设备品种"],type:"text"},
+  {field:"device_type",aliases:["设备种类"],type:"kind",required:true},
+  {field:"equip_status",aliases:["设备状态"],type:"status",required:true},
+  {field:"tank_service_std",aliases:["检修标准"],occurrence:0,type:"text"},
+  {field:"tank_date",aliases:["储气罐下次检验日期","储气罐检验日期"],dateOcc:0,type:"date"},
+  {field:"install_addr",aliases:["设备安装地址","安装地址"],type:"text"},
+  {field:"use_dept",aliases:["设备使用部门","使用部门"],type:"text"},
+  {field:"maintainer_no",aliases:["设备维护人岗号","维护人岗号"],type:"text"},
+  {field:"inspector",aliases:["责任点检","点检责任人","责任点检人"],type:"text"},
+  {field:"valve_service_std",aliases:["检修标准"],occurrence:1,type:"text"},
+  {field:"safety_valve_date",aliases:["安全阀下次检验日期","安全阀检验日期"],dateOcc:1,type:"date"},
+  {field:"photo_label",aliases:["检验标牌照片"],type:"photo"},
+  {field:"gauge_service_std",aliases:["检修标准"],occurrence:2,type:"text"},
+  {field:"photo_dial",aliases:["表盘照片"],type:"photo"},
+  {field:"pressure_gauge_date",aliases:["压力表下次检验日期","压力表检验日期"],dateOcc:2,type:"date"},
+  {field:"inlet_dn",aliases:["入口管径"],type:"text"},
+  {field:"photo_pipe",aliases:["照片"],occurrence:0,type:"photo"},
+  {field:"outlet_dn",aliases:["出口管经","出口管径"],type:"text"},
+  {field:"outlet_length",aliases:["出口长度m","出口长度"],type:"text"},
+  {field:"photo_pipe_2",aliases:["照片"],occurrence:1,type:"photo"},
+  {field:"frost_protection",aliases:["防冻保温"],type:"text"},
+  {field:"photo_nameplate",aliases:["储气罐铭牌照片","储气罐名牌照片"],type:"photo"},
+  {field:"photo_use_mark",aliases:["使用标志照片"],type:"photo"},
+  {field:"photo_use_reg_cert",aliases:["使用登记证照片"],type:"photo"},
+  {field:"photo_overdesign_reg_cert",aliases:["超设计使用登记证照片"],type:"photo"},
+  {field:"photo_shenban_code",aliases:["随申办特设码照片","随申办码照片"],type:"photo"},
+  {field:"photo_inlet_dn",aliases:["入口管径照片"],type:"photo"},
+  {field:"photo_outlet_dn",aliases:["出口管径照片"],type:"photo"},
+  {field:"photo_outlet_length",aliases:["出口长度照片"],type:"photo"},
+  {field:"photo_frost_protection",aliases:["防冻保温照片"],type:"photo"},
+  // 简单压力容器独有字段（允许为空，不作为必填）
+  {field:"volume",aliases:["容积m³","容积m3","容积"],type:"text"},
+  {field:"design_pressure",aliases:["设计压力Mp","设计压力MPa","设计压力"],type:"text"},
+  {field:"design_temp",aliases:["设计温度℃","设计温度°C","设计温度"],type:"text"},
+  {field:"medium",aliases:["介质"],type:"text"},
+  {field:"recommend_life",aliases:["推荐使用寿命","推荐使用年限"],type:"text"},
+  {field:"archive_complete",aliases:["档案是否齐全","档案齐全"],type:"yesno"},
+  {field:"factory",aliases:["所属分厂","分厂"],type:"text",required:true}
+];
+function normHeader(v){return String(v==null?"":v).replace(/[\r\n\t]/g,"").replace(/\s+/g,"").replace(/[（）()]/g,"").replace(/[：:]/g,"").trim();}
+function fmtISO(y,m,d){return y+"-"+String(m).padStart(2,"0")+"-"+String(d).padStart(2,"0");}
+function ymdToISO(y,m,d){y=Number(y);m=Number(m);d=Number(d);if(!isFinite(y)||!isFinite(m)||!isFinite(d))return null;if(y<1900||y>2100||m<1||m>12)return null;const dim=new Date(Date.UTC(y,m,0)).getUTCDate();if(d<1||d>dim)return null;return fmtISO(y,m,d);}
+function excelSerialToYMD(n){
+  n=Math.round(Number(n));if(!isFinite(n)||n<1||n>2958465)return null;
+  const d=new Date(Date.UTC(1899,11,30)+n*86400000);
+  return isNaN(d.getTime())?null:fmtISO(d.getUTCFullYear(),d.getUTCMonth()+1,d.getUTCDate());
+}
+// "YYYY-MM-DD 00:00:00" 等文本 → 取日期段
+function textDateToISO(s){
+  const m=String(s).match(/(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  return m?ymdToISO(m[1],m[2],m[3]):null;
+}
+// Returns "" empty, null unparsable, "YYYY-MM-DD" ok. Also records 6-digit YYYYMM fixes.
+function parseCellDate(v,note){
+  if(v===null||v===undefined||v==="") return "";
+  if(v instanceof Date){if(isNaN(v.getTime()))return null;return ymdToISO(v.getFullYear(),v.getMonth()+1,v.getDate());}
+  if(typeof v==="number"){
+    if(!isFinite(v))return null;
+    const n=Math.round(v);
+    if(n>=19000101&&n<=21001231){const s=String(n);const iso=ymdToISO(s.slice(0,4),s.slice(4,6),s.slice(6,8));if(iso)return iso;}
+    // 6-digit YYYYMM (e.g. 202811 -> 2028-11-01): the root cause of the 2455 dates.
+    if(n>=190001&&n<=210012){
+      const s=String(n),yy=+s.slice(0,4),mm=+s.slice(4,6);
+      if(mm>=1&&mm<=12){const iso=ymdToISO(yy,mm,1);if(iso){if(note)note();return iso;}}
+    }
+    return excelSerialToYMD(n);
+  }
+  const s=String(v).trim();if(!s)return "";
+  if(/^\d+$/.test(s)){
+    const n=Number(s);
+    if(s.length===8&&n>=19000101&&n<=21001231){const iso=ymdToISO(s.slice(0,4),s.slice(4,6),s.slice(6,8));if(iso)return iso;}
+    if(s.length===6&&n>=190001&&n<=210012){
+      const yy=+s.slice(0,4),mm=+s.slice(4,6);
+      if(mm>=1&&mm<=12){const iso=ymdToISO(yy,mm,1);if(iso){if(note)note();return iso;}}
+    }
+    return excelSerialToYMD(n);
+  }
+  const dec=s.match(/^(\d{1,7})\.\d+$/);if(dec){const n=Number(dec[1]);if(n<=2958465)return excelSerialToYMD(n);}
+  const t=textDateToISO(s);if(t)return t;
+  const d=new Date(s);return isNaN(d.getTime())?null:ymdToISO(d.getFullYear(),d.getMonth()+1,d.getDate());
+}
+function assignColumns(headerRow){
+  const used=new Set(),mapping={},notes=[];
+  for(const spec of IMPORT_SPECS){
+    const aliases=spec.aliases.map(normHeader);
+    let col=-1;
+    if(spec.occurrence!==undefined){
+      const hits=[];
+      for(let c=0;c<headerRow.length;c++) if(aliases.indexOf(headerRow[c])>=0) hits.push(c);
+      col=hits[spec.occurrence]!==undefined?hits[spec.occurrence]:-1;
+    } else if(spec.dateOcc!==undefined){
+      for(const a of aliases){const p=headerRow.indexOf(a);if(p>=0){col=p;break;}}
+      if(col<0){
+        const hits=[];
+        for(let c=0;c<headerRow.length;c++) if(headerRow[c].indexOf("检验日期")>=0||headerRow[c].indexOf("检验")>=0&&headerRow[c].indexOf("日期")>=0) hits.push(c);
+        col=hits[spec.dateOcc]!==undefined?hits[spec.dateOcc]:-1;
+      }
+    } else {
+      for(const a of aliases){const p=headerRow.indexOf(a);if(p>=0&&!used.has(p)){col=p;break;}}
+      if(col<0){
+        const photoHeader=/照片|图像|图片|相片/;
+        outer:for(const a of aliases){for(let c=0;c<headerRow.length;c++){
+          const h=headerRow[c];if(!h||used.has(c))continue;
+          // photo specs only fuzzy-match headers explicitly about photos;
+          // non-photo specs must skip photo headers so text fields cannot steal a photo column.
+          if(spec.type==="photo"&&!photoHeader.test(h)) continue;
+          if(spec.type!=="photo"&&photoHeader.test(h)) continue;
+          if(a.length>=2&&(h.indexOf(a)>=0||a.indexOf(h)>=0&&h.length>=2)){col=c;break outer;}
+        }}
+      }
+    }
+    mapping[spec.field]=col;
+    if(col>=0) used.add(col);
+  }
+  return {mapping,notes};
+}
+let pendingImportRows=[],pendingMapping=null,pendingDateFixes=0;
+// 把导入的「设备种类」「设备状态」「档案是否齐全」文本规范化为应用内部值
+function normKindValue(v){
+  const s=String(v==null?"":v).trim().toLowerCase();
+  if(s==="pressure"||s==="简单压力容器"||s==="压力容器"||s==="简单压力") return "pressure";
+  return "special";
+}
+function normStatusValue(v){
+  const s=String(v==null?"":v).trim();
+  if(s==="停用"||s==="停用停用"||s.toLowerCase()==="disabled"||s==="否") return "停用";
+  return "在用";
+}
+function normYesNoValue(v){
+  const s=String(v==null?"":v).trim();
+  if(s==="不齐全"||s==="否"||s.toLowerCase()==="no") return "不齐全";
+  if(s==="齐全"||s==="是"||s.toLowerCase()==="yes") return "齐全";
+  return null;
+}
+function parseWorkbook(wb){
+  if(!wb||!wb.SheetNames||!wb.SheetNames.length) throw new Error("文件内没有工作表");
+  const ws=wb.Sheets[wb.SheetNames[0]];if(!ws) throw new Error("第一个工作表为空");
+  const aoa=XLSX.utils.sheet_to_json(ws,{header:1,defval:"",raw:true});
+  if(!aoa.length) throw new Error("表格为空");
+  const headerRow=(aoa[0]||[]).map(normHeader);
+  const {mapping}=assignColumns(headerRow);
+  // 设备种类/设备状态虽在需求中标为新必填列，但为兼容旧台账：表头缺失时用默认值（特种设备/在用），不阻断导入。
+  const newRequired=new Set(["device_type","equip_status"]);
+  const missing=IMPORT_SPECS.filter(s=>s.required&&!newRequired.has(s.field)&&mapping[s.field]<0).map(s=>s.aliases[0]);
+  if(missing.length) throw new Error("表头缺少必填列："+missing.join("、")+"。当前表头："+headerRow.filter(Boolean).slice(0,12).join(" / "));
+
+  const rows=[],errors=[];let dataLines=0,dateFixes=0;
+  const specByField=f=>IMPORT_SPECS.find(s=>s.field===f);
+  for(let i=1;i<aoa.length;i++){
+    const arr=aoa[i]||[];
+    const get=spec=>mapping[spec.field]>=0?arr[mapping[spec.field]]:"";
+    const no=String(get(IMPORT_SPECS[1])==null?"":get(IMPORT_SPECS[1])).trim();
+    const name=String(get(IMPORT_SPECS[2])==null?"":get(IMPORT_SPECS[2])).trim();
+    const factorySpec=specByField("factory");
+    const factory=String(get(factorySpec)==null?"":get(factorySpec)).trim();
+    let any=false;for(const spec of IMPORT_SPECS){const v=get(spec);if(v!==null&&v!==""&&String(v).trim()!==""){any=true;break;}}
+    if(!any) continue;
+    dataLines++;
+    const line=i+1,reasons=[];
+    if(!no)reasons.push("设备编号为空");if(!name)reasons.push("设备名称为空");if(!factory)reasons.push("所属分厂为空");
+    const row={category:"special",remark:null};
+    let invalidDate=false;
+    for(const spec of IMPORT_SPECS){
+      if(spec.type==="photo"){const v=get(spec);row[spec.field]=v?String(v).trim()||null:null;continue;}
+      if(spec.type==="date"){
+        let fixed=false;
+        const v=parseCellDate(get(spec),()=>{fixed=true;});
+        if(v===null){invalidDate=true;reasons.push(spec.field+"日期无法识别（“"+String(get(spec)).slice(0,18)+"”）");}
+        else{row[spec.field]=v||null;if(fixed&&(spec.field==="tank_date"||spec.field==="safety_valve_date"||spec.field==="pressure_gauge_date"))dateFixes++;}
+      } else if(spec.type==="int"){
+        const v=get(spec);const n=parseInt(v,10);row[spec.field]=isFinite(n)?n:null;
+      } else if(spec.type==="kind"){
+        row[spec.field]=normKindValue(get(spec)); // 缺失/异常默认特种设备
+      } else if(spec.type==="status"){
+        row[spec.field]=normStatusValue(get(spec)); // 缺失/异常默认在用
+      } else if(spec.type==="yesno"){
+        row[spec.field]=normYesNoValue(get(spec)); // 允许空
+      } else {
+        const v=get(spec);row[spec.field]=v?String(v).trim()||null:null;
+      }
+    }
+    // 简单压力容器独有字段允许为空：不因其为空而判错；特种设备检验日期缺失同样不阻断。
+    if(invalidDate){/* keep row but mark; date fields with null will show 日期异常 */}
+    if(reasons.length){errors.push({line,reasons});continue;}
+    rows.push(row);
+  }
+  if(!rows.length) throw new Error("没有可导入的有效数据行（共 "+dataLines+" 行数据）");
+  return {rows,errors,dataLines,mapping,dateFixes,headerRow};
+}
+function openImportPreview(result){
+  pendingImportRows=result.rows;pendingMapping=result.mapping;pendingDateFixes=result.dateFixes;
+  const mapLine=(field,label)=>{
+    const c=pendingMapping[field];
+    return `<div><span>${label}</span> <b>${c>=0?esc(result.headerRow[c]||"（空表头）"):"未识别"}</b></div>`;
+  };
+  $("mappingBox").innerHTML="<h4>关键列映射核对（设备种类/设备状态为新增识别列；3 个检修标准 / 3 个下次检验日期按出现顺序区分；照片列按名称或出现顺序）</h4><div class=\"mapping-grid\">"+
+    mapLine("device_type","设备种类 ←")+mapLine("equip_status","设备状态 ←")+
+    mapLine("tank_service_std","储气罐检修标准 ←")+mapLine("tank_date","储气罐检验日期 ←")+
+    mapLine("valve_service_std","安全阀检修标准 ←")+mapLine("safety_valve_date","安全阀检验日期 ←")+
+    mapLine("gauge_service_std","压力表检修标准 ←")+mapLine("pressure_gauge_date","压力表检验日期 ←")+
+    mapLine("volume","容积m³ ←")+mapLine("medium","介质 ←")+
+    mapLine("use_dept","设备使用部门 ←")+mapLine("inspector","责任点检 ←")+mapLine("frost_protection","防冻保温 ←")+
+    mapLine("factory","所属分厂 ←")+mapLine("device_no","设备编号 ←")+"</div>";
+  const kindCount=result.rows.filter(r=>r.device_type==="pressure").length;
+  $("importSummary").innerHTML='<span class="chip ok">可导入 '+result.rows.length+" 条</span>"+
+    '<span class="chip">特种设备 '+(result.rows.length-kindCount)+" 条</span>"+
+    '<span class="chip">简单压力容器 '+kindCount+" 条</span>"+
+    '<span class="chip warn">跳过 '+result.errors.length+" 行</span>"+
+    '<span class="chip">数据行 '+result.dataLines+" 行</span>"+
+    (result.dateFixes?'<span class="chip warn">6位年月已修正 '+result.dateFixes+" 处</span>":"");
+  const prev=result.rows.slice(0,8);
+  $("previewScroll").innerHTML='<table class="preview-table"><thead><tr><th>设备种类</th><th>设备编号</th><th>设备名称</th><th>设备状态</th><th>分厂</th><th>储气罐检验</th><th>安全阀检验</th><th>压力表检验</th></tr></thead><tbody>'+
+    prev.map(r=>"<tr><td>"+(r.device_type==="pressure"?"简单压力容器":"特种设备")+"</td><td>"+esc(r.device_no)+"</td><td>"+esc(r.device_name)+"</td><td>"+esc(r.equip_status||"在用")+"</td><td>"+esc(r.factory)+"</td><td>"+esc(r.tank_date||"—")+"</td><td>"+esc(r.safety_valve_date||"—")+"</td><td>"+esc(r.pressure_gauge_date||"—")+"</td></tr>").join("")+
+    "</tbody></table>"+(result.rows.length>8?'<div style="padding:8px 10px;font-size:12px;color:var(--text-faint);">仅显示前 8 行，共 '+result.rows.length+" 行</div>":"");
+  $("importErrors").innerHTML=result.errors.length?("<h4>以下问题行已跳过（未导入）</h4><ul>"+result.errors.slice(0,30).map(e=>"<li>第 "+e.line+" 行："+esc(e.reasons.join("；"))+"</li>").join("")+"</ul>"+(result.errors.length>30?"<ul><li>…另有 "+(result.errors.length-30)+" 行</li></ul>":"")):"";
+  $("importError").style.display="none";$("importConfirm").textContent="确认导入 "+result.rows.length+" 条";$("importConfirm").disabled=false;
+  $("importOverlay").classList.add("show");
+}
+async function confirmImport(){
+  if(readonlyMode){toast("只读模式无法导入数据","err");return;}
+  if(!pendingImportRows.length)return;
+  const btn=$("importConfirm");btn.disabled=true;btn.textContent="导入中…";$("importError").style.display="none";
+  try{
+    if($("clearBeforeImport").checked){
+      const {error:de}=await cloud.database.from(TABLE).delete().gt("id",0).select();
+      if(de) throw de;
+    }
+    const payload=pendingImportRows.map(r=>({...r,owner_name:currentUser.name||null}));
+    const batchSize=100;let done=0;
+    for(let i=0;i<payload.length;i+=batchSize){
+      const batch=payload.slice(i,i+batchSize);
+      const {error}=await cloud.database.from(TABLE).insert(batch).select();
+      if(error) throw error;done+=batch.length;
+    }
+    btn.disabled=false;btn.textContent="确认导入";$("importOverlay").classList.remove("show");
+    toast("已导入 "+done+" 条设备"+(pendingDateFixes?"（已修正 "+pendingDateFixes+" 处 6 位年月日期）":""),"ok");
+    pendingImportRows=[];loadData();
+  }catch(e){
+    btn.disabled=false;btn.textContent="确认导入 "+pendingImportRows.length+" 条";
+    const box=$("importError");box.textContent="导入失败："+(e&&e.message?e.message:"网络异常")+"。已填写内容保留，可重试。";box.style.display="block";
+  }
+}
+
+/* ===================== Drawer (full detail edit) ===================== */
+let editingId=null;
+let pendingPhotos={};
+function fieldInputHTML(key,label,type,required){
+  const req=required?'<span class="req">*</span>':"";
+  let input;
+  if(type==="kind"){
+    input=`<select id="df_${key}"><option value="special">特种设备</option><option value="pressure">简单压力容器</option></select>`;
+  } else if(type==="status"){
+    input=`<select id="df_${key}"><option value="在用">在用</option><option value="停用">停用</option></select>`;
+  } else if(type==="yesno"){
+    input=`<select id="df_${key}"><option value="齐全">齐全</option><option value="不齐全">不齐全</option><option value="">未填</option></select>`;
+  } else if(type==="select"){
+    input=`<select id="df_${key}"><option value="special">特种设备</option><option value="pressure">简单压力容器</option></select>`;
+  } else {
+    const t=type==="date"?"date":(type==="int"?"number":"text");
+    input=`<input type="${t}" id="df_${key}" ${type==="int"?'step="1"':""} autocomplete="off" />`;
+  }
+  return `<div class="field"><label>${esc(label)}${req}</label>${input}<div class="err" id="de_${key}">此项为必填</div></div>`;
+}
+function photoCardHTML(key,label){
+  return `<div class="photo-card"><div class="photo-card-head">${esc(label)}</div><div class="photo-field">
+    <img class="photo-preview" id="pp_${key}" alt="预览" />
+    <div class="photo-placeholder" id="ph_${key}"><svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg><span>暂无照片</span></div>
+    <div class="photo-actions">
+      <button type="button" class="btn btn-ghost" id="pc_${key}">选择照片</button>
+      <button type="button" class="btn btn-danger-ghost" id="pr_${key}" style="display:none;">移除</button>
+      <input type="file" class="file-input" id="pi_${key}" accept="image/*" />
+      <div class="compress-info" id="pz_${key}"></div>
+    </div>
+  </div></div>`;
+}
+let drawerDraft={},currentKind="special";
+// 收集当前表单输入到草稿（切换设备种类前调用，避免丢失已填内容）
+function collectDrawerDraft(){
+  ALL_FIELDS.forEach(f=>{const el=$("df_"+f[0]);if(el)drawerDraft[f[0]]=el.value;});
+  const rm=$("df_remark");if(rm)drawerDraft.remark=rm.value;
+  const kt=$("df_device_type");if(kt)drawerDraft.device_type=kt.value;
+}
+// 根据当前设备种类渲染抽屉主体（区块 + 顶部种类下拉）
+function renderDrawerBody(){
+  const groups=groupsForKind(currentKind);
+  const kindHead=`<div class="section-card"><div class="section-card-head"><span class="section-num">◆</span>设备种类</div>
+    <div class="section-card-body"><div class="form-grid">
+      <div class="field"><label>设备种类<span class="req">*</span></label>
+        <select id="df_device_type">
+          <option value="special"${currentKind==="special"?" selected":""}>特种设备</option>
+          <option value="pressure"${currentKind==="pressure"?" selected":""}>简单压力容器</option>
+        </select>
+        <div class="err" id="de_device_type">此项为必填</div>
+      </div>
+      <div class="field"><label>备注</label><textarea id="df_remark" rows="1" placeholder="选填"></textarea></div>
+    </div></div></div>`;
+  let html=kindHead;
+  groups.forEach((g,gi)=>{
+    const photos=g.photos||[];
+    const inner=`<div class="section-card-body"><div class="form-grid">`+
+      g.fields.map(f=>fieldInputHTML(f[0],f[1],f[2],f[3])).join("")+
+      (photos.length?`<div class="photo-subhead">图片附件（上传前自动压缩：宽 800px · 质量 60%）</div>`+
+        (readonlyMode
+          ?`<div class="field full"><div class="readonly-photo-note">照片需登录后在编辑模式中查看与上传。</div></div>`
+          :photos.map(f=>photoCardHTML(f[0],f[1])).join("")):"")+
+      `</div></div>`;
+    const head=`<div class="section-card-head"><span class="section-num">${gi+1}</span>${esc(g.title)}</div>`;
+    html+=`<div class="section-card">${head}${inner}</div>`;
+  });
+  $("drawerBody").innerHTML=html;
+  // 回填草稿值（仅当前种类包含的字段）
+  groups.forEach(g=>g.fields.forEach(f=>{
+    const [key,,type]=f;const el=$("df_"+key);if(!el)return;
+    let v=drawerDraft[key];if(v==null)v="";
+    if(type==="date") v=v?String(v).slice(0,10):"";
+    if(type==="status") v=v||"在用";
+    if(type==="kind") v=v||"special";
+    el.value=v;
+    if(readonlyMode){if(el.tagName==="SELECT")el.disabled=true;else el.readOnly=true;}
+    const err=$("de_"+key);if(err)err.classList.remove("show");el.classList.remove("invalid");
+  }));
+  $("df_remark").value=drawerDraft.remark||"";
+  if(readonlyMode) $("df_remark").readOnly=true;
+  const kt=$("df_device_type");if(readonlyMode)kt.disabled=true;
+  if(!readonlyMode){
+    kt.addEventListener("change",e=>{
+      collectDrawerDraft();currentKind=e.target.value;renderDrawerBody();
+    });
+    // 恢复当前种类下的照片预览
+    PHOTO_FIELDS.forEach(([key])=>{
+      const pv=$("pp_"+key),ph=$("ph_"+key),rm=$("pr_"+key),info=$("pz_"+key);
+      if(!pv||!ph||!rm) return; // 该种类不含此照片
+      const path=drawerDraft[key]||null,url=path?photoUrls[path]:null;
+      const st=pendingPhotos[key]||{action:"none"};
+      if(st.action==="set"&&st.preview){pv.src=st.preview;pv.classList.add("show");ph.style.display="none";rm.style.display="inline-flex";}
+      else if(st.action==="remove"){pv.classList.remove("show");ph.style.display="flex";rm.style.display="none";}
+      else if(url){pv.src=url;pv.classList.add("show");ph.style.display="none";rm.style.display="inline-flex";}
+      else{pv.classList.remove("show");ph.style.display="flex";rm.style.display="none";}
+      if(info){info.classList.remove("show","err");info.textContent="";}
+    });
+    wirePhotoEvents();
+  }
+}
+function openDrawer(id){
+  editingId=id||null;
+  const r=id?allRows.find(x=>x.id===id):null;
+  $("drawerTitle").textContent=readonlyMode?"设备详情（只读）":(r?"设备详情 / 编辑":"新增设备");
+  $("drawerSub").textContent=r?(r.device_no+" · "+(r.factory||kindLabel(r))):"填写设备台账字段";
+  $("drawerError").classList.remove("show");
+  $("drawerSave").style.display=readonlyMode?"none":"";
+  $("drawerCancel").textContent=readonlyMode?"关闭":"取消";
+  // 从记录初始化草稿（覆盖两类所有字段）
+  drawerDraft={};
+  ALL_FIELDS.forEach(f=>{const k=f[0];drawerDraft[k]=r&&r[k]!=null?r[k]:"";});
+  drawerDraft.device_type=r?deviceKind(r):"special";
+  drawerDraft.equip_status=(r&&r.equip_status)||"在用";
+  drawerDraft.remark=r?(r.remark||""):"";
+  currentKind=drawerDraft.device_type;
+  pendingPhotos={};
+  PHOTO_FIELDS.forEach(([key])=>{pendingPhotos[key]={action:"none",file:null,preview:null};});
+  renderDrawerBody();
+  $("drawerOverlay").classList.add("show");
+}
+function closeDrawer(){$("drawerOverlay").classList.remove("show");}
+function validateDrawer(){
+  let ok=true;
+  const activeFields=groupsForKind(currentKind).flatMap(g=>g.fields);
+  activeFields.forEach(f=>{
+    if(!f[3])return;const el=$("df_"+f[0]),err=$("de_"+f[0]);
+    if(!el||!el.value.trim()){if(el)el.classList.add("invalid");if(err)err.classList.add("show");ok=false;}
+    else{el.classList.remove("invalid");err.classList.remove("show");}
+  });
+  return ok;
+}
+async function saveDrawer(){
+  if(readonlyMode){toast("只读模式无法修改数据","err");return;}
+  if(!validateDrawer()){toast("请填写完整必填项","err");return;}
+  const btn=$("drawerSave");btn.disabled=true;btn.textContent="保存中…";$("drawerError").classList.remove("show");
+  try{
+    const activeFields=groupsForKind(currentKind).flatMap(g=>g.fields);
+    const payload={};
+    activeFields.forEach(f=>{
+      const [key,,type]=f;const el=$("df_"+key);let v=el?el.value:"";
+      if(type==="int"){const n=parseInt(v,10);payload[key]=isFinite(n)?n:null;}
+      else if(type==="date") payload[key]=v||null;
+      else payload[key]=v.trim()||null;
+    });
+    payload.device_type=$("df_device_type").value; // 设备种类：special / pressure
+    // 切换到简单压力容器时，清空对特种设备独有字段的提交（保留数据库原值由 history 决定，此处仅不覆盖）
+    payload.remark=$("df_remark").value.trim()||null;
+    let rowId=editingId;
+    if(editingId){
+      const {error}=await cloud.database.from(TABLE).update(payload).eq("id",editingId).select();if(error)throw error;
+    }else{
+      const {data:created,error}=await cloud.database.from(TABLE).insert({...payload,owner_name:currentUser.name||null}).select();
+      if(error)throw error;if(Array.isArray(created)&&created.length)rowId=created[0].id;
+    }
+    for(const [key] of PHOTO_FIELDS){
+      const st=pendingPhotos[key]||{action:"none",file:null};
+      if(st.action==="set"&&st.file&&rowId){
+        const path=cloud.storage.userPath(currentUser.id,"equipment-photos/device-"+rowId+"/"+key+".jpg");
+        const up=await cloud.storage.upload(path,st.file,{contentType:"image/jpeg",upsert:true});if(up&&up.error)throw up.error;
+        const {error:ue}=await cloud.database.from(TABLE).update({[key]:path}).eq("id",rowId).select();if(ue)throw ue;
+      }else if(st.action==="remove"&&rowId){
+        const r0=allRows.find(x=>x.id===rowId);
+        if(r0&&r0[key]){try{await cloud.storage.remove([r0[key]]);}catch(e){}}
+        const {error:ue}=await cloud.database.from(TABLE).update({[key]:null}).eq("id",rowId).select();if(ue)throw ue;
+      }
+    }
+    btn.disabled=false;btn.textContent="保存";closeDrawer();toast(editingId?"已保存修改":"设备已添加","ok");loadData();
+  }catch(e){btn.disabled=false;btn.textContent="保存";$("drawerError").classList.add("show");}
+}
+async function deleteRow(id){
+  if(readonlyMode){toast("只读模式无法删除数据","err");return;}
+  const r=allRows.find(x=>x.id===id);if(!r)return;
+  if(!confirm("确定删除设备「"+r.device_name+"」吗？此操作不可恢复。"))return;
+  try{
+    const paths=PHOTO_KEYS.map(k=>r[k]).filter(Boolean);
+    if(paths.length){try{await cloud.storage.remove(paths);}catch(e){}}
+    const {data,error}=await cloud.database.from(TABLE).delete().eq("id",id).select();if(error)throw error;
+    if(!Array.isArray(data)||!data.length){toast("删除失败，记录可能已不存在","err");return;}
+    toast("设备已删除","ok");loadData();
+  }catch(e){toast("删除失败，请检查网络后重试","err");}
+}
+async function viewPhoto(id){
+  if(readonlyMode){toast("照片需登录后在编辑模式中查看","err");return;}
+  const r=allRows.find(x=>x.id===id);if(!r)return;const p=firstPath(r);if(!p)return;
+  const url=await getPhotoUrl(p);if(!url){toast("照片加载失败，请检查网络后重试","err");return;}
+  $("viewerImg").src=url;$("viewer").classList.add("show");
+}
+
+/* ===================== Batch photo upload: filename -> device_no ===================== */
+function normNo(s){return String(s==null?"":s).trim().toUpperCase().replace(/\s+/g,"");}
+// 从图片文件名解析设备编号：优先精确匹配；其次「设备编号 + 分隔符 + 描述」前缀匹配。
+function matchDeviceByFileName(fileName){
+  const base=String(fileName==null?"":fileName).replace(/\.[^.]+$/,"").trim();
+  if(!base)return null;
+  const key=normNo(base);
+  const exact=allRows.find(r=>normNo(r.device_no)===key);
+  if(exact)return exact;
+  const upper=base.toUpperCase();
+  for(const r of allRows){
+    const no=String(r.device_no==null?"":r.device_no).trim();
+    if(no.length<3)continue;
+    if(upper.indexOf(no.toUpperCase())!==0)continue;
+    if(/^[\s_\-—－（(·.]/.test(base.slice(no.length)))return r;
+  }
+  return null;
+}
+function showBatchResult(ok,fail,err,skip){
+  let h='<div class="batch-summary"><span class="chip ok">成功 '+ok.length+' 张</span>'+
+    (fail.length?'<span class="chip warn">未匹配 '+fail.length+' 张</span>':'')+
+    (err.length?'<span class="chip warn">上传失败 '+err.length+' 张</span>':'')+
+    (skip.length?'<span class="chip">非图片 '+skip.length+' 个</span>':'')+'</div>';
+  if(ok.length){
+    h+='<div class="photo-subhead">已上传至「储气罐铭牌照片」（自动压缩：宽 800px · 质量 60%）</div><div class="batch-list">'+
+      ok.map(x=>'<div><b>'+esc(x.no)+'</b> · '+esc(x.name)+' ← '+esc(x.file)+'</div>').join("")+
+      '</div><div class="batch-list" style="margin-top:8px;color:var(--text-faint)">同一设备若选中多张图片，以最后一张为准。</div>';
+  }
+  if(fail.length){
+    h+='<div class="photo-subhead">未匹配</div><div class="batch-list">'+
+      fail.map(x=>'<div><b class="batch-fail">未找到编号为 '+esc(x.no)+' 的设备</b>（'+esc(x.file)+'）</div>').join("")+'</div>';
+  }
+  if(err.length){
+    h+='<div class="photo-subhead">上传异常</div><div class="batch-list">'+
+      err.map(x=>'<div>'+esc(x.file)+'：'+esc(x.msg)+'</div>').join("")+'</div>';
+  }
+  $("batchResultBody").innerHTML=h;
+  $("batchResultOverlay").classList.add("show");
+}
+async function batchUploadPhotos(fileList){
+  if(readonlyMode){toast("只读模式无法上传图片，请先登录","err");return;}
+  const files=Array.from(fileList||[]);
+  if(!files.length)return;
+  const images=files.filter(f=>f.type&&f.type.startsWith("image/"));
+  const skipped=files.filter(f=>!f.type||!f.type.startsWith("image/"));
+  const ok=[],fail=[],err=[];
+  const btn=$("batchPhotoBtn"),originalHTML=btn.innerHTML;btn.disabled=true;
+  try{
+    for(let i=0;i<images.length;i++){
+      const f=images[i];btn.textContent="上传中 "+(i+1)+"/"+images.length;
+      const base=String(f.name||"").replace(/\.[^.]+$/,"").trim();
+      const row=matchDeviceByFileName(f.name||"");
+      if(!row){fail.push({no:base||"(空文件名)",file:f.name||""});continue;}
+      try{
+        if(f.size>20*1024*1024){err.push({file:f.name||"",msg:"原图超过 20MB，已跳过"});continue;}
+        const small=await compressImage(f,800,0.6);
+        const path=cloud.storage.userPath(currentUser.id,"equipment-photos/device-"+row.id+"/photo_nameplate.jpg");
+        const up=await cloud.storage.upload(path,small,{contentType:"image/jpeg",upsert:true});
+        if(up&&up.error)throw up.error;
+        const {error:ue}=await cloud.database.from(TABLE).update({photo_nameplate:path,updated_at:new Date().toISOString()}).eq("id",row.id).select();
+        if(ue)throw ue;
+        row.photo_nameplate=path;
+        try{const u=await getPhotoUrl(path);if(u)photoUrls[path]=u;}catch(e){}
+        ok.push({no:row.device_no||base,name:row.device_name||"",file:f.name||""});
+      }catch(e){err.push({file:f.name||"",msg:(e&&e.message)||"上传失败，请重试"});}
+    }
+  }finally{
+    btn.disabled=false;btn.innerHTML=originalHTML;
+    try{render();}catch(e){}
+    showBatchResult(ok,fail,err,skipped);
+  }
+}
+
+/* Photo cards are injected dynamically by openDrawer, so bind after each render. */
+function wirePhotoEvents(){
+  PHOTO_FIELDS.forEach(([key])=>{
+    const pick=$("pc_"+key),input=$("pi_"+key),remove=$("pr_"+key);
+    if(!pick||!input||!remove) return;
+    pick.onclick=()=>input.click();
+    input.onchange=async e=>{
+      const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+      if(!f.type.startsWith("image/")){toast("请选择图片文件","err");return;}
+      if(f.size>20*1024*1024){toast("原图不能超过 20MB","err");return;}
+      const info=$("pz_"+key);info.textContent="正在压缩图片…";info.classList.add("show");info.classList.remove("err");
+      try{
+        const small=await compressImage(f,800,0.6);
+        const reader=new FileReader();
+        reader.onload=ev=>{
+          pendingPhotos[key]={action:"set",file:small,preview:ev.target.result};
+          const pv=$("pp_"+key);if(pv){pv.src=ev.target.result;pv.classList.add("show");}
+          const ph=$("ph_"+key),pr=$("pr_"+key);if(ph)ph.style.display="none";if(pr)pr.style.display="inline-flex";
+          info.textContent="已压缩："+fmtSize(f.size)+" → "+fmtSize(small.size)+"（宽 800px · 质量 60%）";
+        };
+        reader.readAsDataURL(small);
+      }catch(err){info.classList.add("err");info.textContent="图片处理失败，请换一张重试";}
+    };
+    remove.onclick=()=>{
+      pendingPhotos[key]={action:"remove",file:null,preview:null};
+      const pv=$("pp_"+key),ph=$("ph_"+key),pr=$("pr_"+key);
+      if(pv)pv.classList.remove("show");if(ph)ph.style.display="flex";if(pr)pr.style.display="none";
+      const info=$("pz_"+key);info.classList.remove("show","err");$("pi_"+key).value="";
+    };
+  });
+}
+
+/* ===================== Events ===================== */
+function wireEvents(){
+  $("loginBtn").addEventListener("click",doLogin);
+  $("copyLinkBtn").addEventListener("click",doCopyLink);
+  $("copyLinkConfirm").addEventListener("click",copyAuthLink);
+  $("linkBoxClose").addEventListener("click",()=>{$("linkBox").style.display="none";});
+  $("readonlyBtn").addEventListener("click",enterReadonly);
+  $("logoutBtn").addEventListener("click",doLogout);
+  $("addBtn").addEventListener("click",()=>openDrawer(null));
+  $("refreshBtn").addEventListener("click",loadData);
+  $("searchInput").addEventListener("input",e=>{keyword=e.target.value;render();});
+  $("deptFilter").addEventListener("change",e=>{deptFilter=e.target.value;render();});
+  $("inspectorFilter").addEventListener("change",e=>{inspectorFilter=e.target.value;render();});
+  $("tabs").addEventListener("click",e=>{
+    const t=e.target.closest(".tab");if(!t)return;
+    filter=t.dataset.filter;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===t));render();
+  });
+  $("drawerClose").addEventListener("click",closeDrawer);
+  $("drawerCancel").addEventListener("click",closeDrawer);
+  $("drawerOverlay").addEventListener("click",e=>{if(e.target===$("drawerOverlay"))closeDrawer();});
+  $("drawerSave").addEventListener("click",saveDrawer);
+  $("drawerBody").addEventListener("input",e=>{
+    if(e.target.id&&e.target.id.indexOf("df_")===0){e.target.classList.remove("invalid");const er=$("de_"+e.target.id.slice(3));if(er)er.classList.remove("show");}
+  });
+  $("batchPhotoBtn").addEventListener("click",()=>$("batchPhotoInput").click());
+  $("batchPhotoInput").addEventListener("change",e=>{
+    const files=e.target.files;e.target.value="";
+    if(files&&files.length)batchUploadPhotos(files);
+  });
+  $("batchResultClose").addEventListener("click",()=>$("batchResultOverlay").classList.remove("show"));
+  $("batchResultOk").addEventListener("click",()=>$("batchResultOverlay").classList.remove("show"));
+  $("batchResultOverlay").addEventListener("click",e=>{if(e.target===$("batchResultOverlay"))$("batchResultOverlay").classList.remove("show");});
+  $("importBtn").addEventListener("click",()=>$("excelInput").click());
+  $("excelInput").addEventListener("change",e=>{
+    const f=e.target.files&&e.target.files[0];e.target.value="";if(!f)return;
+    if(!/\.(xlsx|xls)$/i.test(f.name)){toast("请选择 .xlsx 或 .xls 文件","err");return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        if(typeof XLSX==="undefined"){toast("Excel 解析组件未加载，请刷新页面","err");return;}
+        const wb=XLSX.read(new Uint8Array(ev.target.result),{type:"array",cellDates:false});
+        openImportPreview(parseWorkbook(wb));
+      }catch(err){toast("导入失败："+(err&&err.message?err.message:"文件解析错误"),"err");}
+    };
+    reader.onerror=()=>toast("文件读取失败，请重试","err");
+    reader.readAsArrayBuffer(f);
+  });
+  $("importClose").addEventListener("click",()=>$("importOverlay").classList.remove("show"));
+  $("importCancel").addEventListener("click",()=>$("importOverlay").classList.remove("show"));
+  $("importOverlay").addEventListener("click",e=>{if(e.target===$("importOverlay"))$("importOverlay").classList.remove("show");});
+  $("importConfirm").addEventListener("click",confirmImport);
+
+  $("viewerClose").addEventListener("click",()=>$("viewer").classList.remove("show"));
+  $("viewer").addEventListener("click",e=>{if(e.target===$("viewer"))$("viewer").classList.remove("show");});
+  document.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){$("viewer").classList.remove("show");$("importOverlay").classList.remove("show");$("batchResultOverlay").classList.remove("show");closeDrawer();}
+  });
+}
+
+/* ===================== Bootstrap ===================== */
+(async function main(){
+  wireEvents();
+  try{initSDK();}catch(e){$("authError").textContent="组件加载失败，请检查网络后刷新页面。";return;}
+  await restoreAuth();
+})();
+</script>
+</body>
+</html>
