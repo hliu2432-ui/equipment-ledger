@@ -287,6 +287,8 @@
   .auth-form-error.show{display:block}
   .auth-hint{font-size:12px;color:var(--text-faint);margin-top:14px;text-align:center;line-height:1.6}
   .user-chip span{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .pwd-sub{font-size:13px;color:var(--text-sub);margin:0 0 16px;word-break:break-all}
+  .pwd-sub strong{color:var(--text)}
 </style>
 </head>
 <body>
@@ -329,6 +331,7 @@
       <div class="topbar-spacer"></div>
       <div class="readonly-badge" id="readonlyBadge">已登录</div>
       <div class="user-chip"><div class="avatar" id="avatar">—</div><span id="userName">—</span></div>
+      <button class="icon-btn" id="changePwdBtn" title="修改当前账号密码">修改密码</button>
       <button class="icon-btn" id="logoutBtn">退出登录</button>
     </div>
   </div>
@@ -437,6 +440,29 @@
       <div class="save-error" id="importError" style="display:none;"></div>
       <button class="btn btn-ghost" id="importCancel">取消</button>
       <button class="btn btn-primary" id="importConfirm">确认导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CHANGE PASSWORD ============ -->
+<div class="overlay" id="pwdOverlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-head"><h2>修改登录密码</h2><button class="close-x" id="pwdClose">&times;</button></div>
+    <div class="modal-body">
+      <p class="pwd-sub">当前账号：<strong id="pwdAccount">—</strong></p>
+      <div class="field">
+        <label for="pwdNew">新密码<span class="req">*</span></label>
+        <input type="password" id="pwdNew" autocomplete="new-password" placeholder="至少 6 位字符" />
+      </div>
+      <div class="field" style="margin-top:12px;">
+        <label for="pwdConfirm">确认新密码<span class="req">*</span></label>
+        <input type="password" id="pwdConfirm" autocomplete="new-password" placeholder="再输入一次新密码" />
+      </div>
+      <div class="save-error" id="pwdError" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" id="pwdCancel">取消</button>
+      <button class="btn btn-primary" id="pwdSave">确认修改</button>
     </div>
   </div>
 </div>
@@ -553,6 +579,7 @@ function showLogin(message){
   $("appView").style.display="none";
   $("drawerOverlay").classList.remove("show");
   $("viewer").classList.remove("show");
+  $("pwdOverlay").classList.remove("show");
   $("authView").style.display="flex";
   const form=$("loginForm");if(form)form.style.display="flex";
   const hint=$("loginHint");if(hint)hint.style.display="block";
@@ -629,6 +656,60 @@ async function doSignOut(){
     console.warn("[Auth] 退出登录请求失败：",e);
   }
   location.reload();   // 退出后刷新页面，回到登录卡片
+}
+
+/* ---------- 修改密码 ---------- */
+function openPwdModal(){
+  if(!supabaseClient){toast("Supabase 客户端未初始化，请刷新页面","err");return;}
+  const acc=$("pwdAccount");
+  if(acc)acc.textContent=(currentUser&&currentUser.name)||"—";
+  const p1=$("pwdNew"),p2=$("pwdConfirm");
+  if(p1)p1.value="";
+  if(p2)p2.value="";
+  const err=$("pwdError");
+  if(err){err.textContent="";err.classList.remove("show");}
+  const btn=$("pwdSave");
+  if(btn){btn.disabled=false;btn.textContent="确认修改";}
+  $("pwdOverlay").classList.add("show");
+  setTimeout(()=>{if(p1)p1.focus();},60);
+}
+function closePwdModal(){
+  const ov=$("pwdOverlay");if(ov)ov.classList.remove("show");
+}
+function pwdErrorMessage(err){
+  const msg=String((err&&err.message)||err||"修改失败，请重试");
+  const low=msg.toLowerCase();
+  if(low.indexOf("reauthentication")>=0)return "会话需要重新验证：请退出后重新登录，再修改密码。";
+  if(low.indexOf("should contain at least one character of each")>=0)return "密码强度不足：需同时包含大小写字母、数字和特殊字符。";
+  if(low.indexOf("should be different")>=0)return "新密码不能与当前密码相同。";
+  if(low.indexOf("at least")>=0||low.indexOf("too short")>=0||low.indexOf("password should be")>=0)return "密码强度不足：至少 6 位字符。";
+  if(low.indexOf("session missing")>=0||low.indexOf("not authenticated")>=0)return "登录状态已失效，请重新登录。";
+  if(low.indexOf("rate limit")>=0||low.indexOf("too many")>=0)return "操作过于频繁，请稍后再试。";
+  if(low.indexOf("failed to fetch")>=0||low.indexOf("network")>=0)return "网络异常，请检查网络后重试。";
+  return msg;
+}
+async function saveNewPassword(){
+  const p1=($("pwdNew")&&$("pwdNew").value)||"";
+  const p2=($("pwdConfirm")&&$("pwdConfirm").value)||"";
+  const err=$("pwdError"),btn=$("pwdSave");
+  const showErr=function(m){if(err){err.textContent=m;err.classList.add("show");}};
+  if(err){err.textContent="";err.classList.remove("show");}
+  if(p1.length<6){showErr("新密码至少 6 位字符。");if($("pwdNew"))$("pwdNew").focus();return;}
+  if(p1!==p2){showErr("两次输入的新密码不一致。");if($("pwdConfirm"))$("pwdConfirm").focus();return;}
+  if(!supabaseClient){showErr("Supabase 客户端未初始化，请刷新页面。");return;}
+  if(btn){btn.disabled=true;btn.textContent="提交中…";}
+  try{
+    const {error}=await supabaseClient.auth.updateUser({password:p1});
+    if(error)throw error;
+    closePwdModal();
+    toast("密码修改成功，下次登录请使用新密码","ok");
+  }catch(e){
+    if(/session missing|not authenticated/i.test(String((e&&e.message)||""))){
+      closePwdModal();showLogin("登录状态已失效，请重新登录");return;
+    }
+    showErr(pwdErrorMessage(e));
+    if(btn){btn.disabled=false;btn.textContent="确认修改";}
+  }
 }
 
 /* ---------- 会话检查与启动 ---------- */
@@ -1610,6 +1691,14 @@ function wirePhotoEvents(){
 function wireEvents(){
   $("loginForm").addEventListener("submit",handleLogin);
   $("togglePwd").addEventListener("click",togglePassword);
+  $("changePwdBtn").addEventListener("click",openPwdModal);
+  $("pwdClose").addEventListener("click",closePwdModal);
+  $("pwdCancel").addEventListener("click",closePwdModal);
+  $("pwdOverlay").addEventListener("click",e=>{if(e.target===$("pwdOverlay"))closePwdModal();});
+  $("pwdSave").addEventListener("click",saveNewPassword);
+  ["pwdNew","pwdConfirm"].forEach(id=>{
+    $(id).addEventListener("keydown",e=>{if(e.key==="Enter"){e.preventDefault();saveNewPassword();}});
+  });
   $("logoutBtn").addEventListener("click",doSignOut);
   $("addBtn").addEventListener("click",()=>openDrawer(null));
   $("refreshBtn").addEventListener("click",loadData);
@@ -1658,7 +1747,7 @@ function wireEvents(){
   $("viewerClose").addEventListener("click",()=>$("viewer").classList.remove("show"));
   $("viewer").addEventListener("click",e=>{if(e.target===$("viewer"))$("viewer").classList.remove("show");});
   document.addEventListener("keydown",e=>{
-    if(e.key==="Escape"){$("viewer").classList.remove("show");$("importOverlay").classList.remove("show");$("batchResultOverlay").classList.remove("show");closeDrawer();}
+    if(e.key==="Escape"){$("viewer").classList.remove("show");$("importOverlay").classList.remove("show");$("batchResultOverlay").classList.remove("show");$("pwdOverlay").classList.remove("show");closeDrawer();}
   });
 }
 
