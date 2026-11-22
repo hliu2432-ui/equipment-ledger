@@ -4,7 +4,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>宝钢除尘特种设备台账与到期看板系统 </title>
-<script src="vendor/workbuddy-cloud-sdk.js"></script>
+<!-- Supabase JS SDK v2（CDN） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="vendor/xlsx.full.min.js"></script>
 <style>
   :root {
@@ -257,29 +258,31 @@
     .mapping-grid{grid-template-columns:1fr}
     #viewer{padding:12px}.viewer-close{width:48px;height:48px;top:14px;right:14px}
   }
+
+  /* ===== 启动页 / 错误提示样式 ===== */
+  .auth-desc{color:var(--text-sub);margin:0;font-size:13.5px;line-height:1.75;text-align:left}
+  .auth-desc code,.readonly-tip code{background:var(--surface-2);border:1px solid var(--border);border-radius:5px;padding:1px 5px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;word-break:break-all}
+  .serve-box{display:flex;flex-direction:column;gap:6px;margin:12px 0 0;background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .serve-box code{display:inline-block;background:#0f172a;color:#e2e8f0;border:none;padding:7px 10px;border-radius:6px;font-size:13px;user-select:all;word-break:break-all}
+  .serve-box span{font-size:12px;color:var(--text-faint)}
+  .serve-tip{font-size:12px;color:var(--text-faint);margin:12px 0 0;text-align:left;line-height:1.7}
+
+  /* ===== Supabase 云端模式：数据状态提示 ===== */
+  .data-alert{background:var(--amber-soft);border:1px solid var(--amber);color:#92400e;border-radius:10px;padding:11px 14px;font-size:13px;margin-bottom:16px;line-height:1.75;word-break:break-word}
+  .data-alert code{background:rgba(255,255,255,.7);border:1px solid rgba(217,119,6,.35);border-radius:5px;padding:1px 5px;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .err-detail{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;font-size:12px;color:var(--text-sub);text-align:left;line-height:1.8;margin-top:14px;word-break:break-all}
 </style>
 </head>
 <body>
 
-<!-- ============ AUTH ============ -->
+<!-- ============ 启动 / Supabase 数据加载 ============ -->
 <div id="authView">
   <div class="auth-card">
     <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
     <h1>宝钢除尘特种设备台账与到期看板系统</h1>
-    <p>储气罐 · 安全阀 · 压力表 检验到期一站式管理<br>登录后管理台账，或免登录只读查看</p>
-    <button class="btn-primary-login" id="loginBtn" disabled>使用 WorkBuddy 登录（自动跳转）</button>
-    <button class="btn-alt-login" id="copyLinkBtn" disabled>复制授权链接（手动打开）</button>
-    <div class="link-box" id="linkBox" style="display:none;">
-      <p>已生成授权链接，请复制后粘贴到<strong>任意浏览器地址栏</strong>打开并完成授权。授权成功后会自动回到本台账。</p>
-      <textarea id="authLinkText" readonly spellcheck="false"></textarea>
-      <div class="link-box-actions">
-        <button class="btn btn-primary" id="copyLinkConfirm">复制链接</button>
-        <button class="btn btn-ghost" id="linkBoxClose">收起</button>
-      </div>
-    </div>
-    <div class="auth-or">或</div>
-    <button class="btn-readonly-login" id="readonlyBtn" disabled>免登录只读查看台账</button>
+    <p class="auth-desc" id="bootDesc">正在连接 Supabase · <code>ledger</code> 表 …</p>
     <div class="auth-error" id="authError"></div>
+    <button class="btn btn-primary" id="reloadBtn" style="display:none;width:100%;margin-top:18px;justify-content:center;" onclick="location.reload()">重新加载</button>
   </div>
 </div>
 
@@ -288,7 +291,7 @@
   <div class="topbar">
     <div class="topbar-inner">
       <div class="brand-mark"><svg viewBox="0 0 24 24"><path d="M12 2L2 7v2h20V7L12 2zm0 2.2L17.5 7h-11L12 4.2zM4 10v9H2v2h20v-2h-2v-9h-2v9h-3v-9h-2v9h-3v-9H8v9H6v-9H4z"/></svg></div>
-      <div><div class="topbar-title">宝钢除尘特种设备台账与到期看板系统</div><div class="topbar-sub">特种设备 / 简单压力容器 · V3 全量台账</div></div>
+      <div><div class="topbar-title">宝钢除尘特种设备台账与到期看板系统</div><div class="topbar-sub">特种设备 / 简单压力容器 · Supabase ledger</div></div>
       <div class="topbar-spacer"></div>
       <div class="readonly-badge" id="readonlyBadge">只读模式</div>
       <div class="user-chip"><div class="avatar" id="avatar">—</div><span id="userName">—</span></div>
@@ -296,7 +299,8 @@
     </div>
   </div>
   <div class="main">
-    <div class="readonly-tip" id="readonlyTip" style="display:none;">当前为<strong>免登录只读模式</strong>：可查看台账与到期状态，新增 / 编辑 / 删除 / 导入 / 照片上传不可用。如需修改，请点右上角「登录编辑」。</div>
+    <div class="readonly-tip" id="readonlyTip" style="display:none;">当前为<strong>云端只读模式</strong>：数据实时来自 Supabase <code>ledger</code> 表，页面不写库。在 Supabase 中修改数据后，点击右上角「刷新」重新查询。</div>
+    <div class="data-alert" id="dataAlert" style="display:none;"></div>
     <div class="stats">
       <div class="stat total"><div class="stat-label"><span class="stat-dot"></span>设备总数</div><div class="stat-value" id="statTotal">0</div><div class="stat-hint">台账内全部设备</div></div>
       <div class="stat expired"><div class="stat-label"><span class="stat-dot"></span>已过期</div><div class="stat-value" id="statExpired">0</div><div class="stat-hint">需尽快现场核查</div></div>
@@ -346,7 +350,7 @@
         </div>
         <div class="state-box" id="emptyState" style="display:none;">
           <svg viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zM7 12h10v2H7zm0-4h10v2H7zm0 8h7v2H7z"/></svg>
-          <h3>暂无数据</h3><p id="emptyHint">点击右上角「导入 Excel」或「新增设备」开始建立台账</p>
+          <h3>暂无数据</h3><p id="emptyHint">请确认 Supabase 的 ledger 表中已有设备数据</p>
         </div>
       </div>
     </div>
@@ -408,13 +412,13 @@
 <div id="toast"></div>
 
 <script>
-/* ===================== Cloud init ===================== */
-const publicConfig = {
-  endpoint:"https://equipment-ledger-10464.app.workbuddy.host",
-  oauthRelayBaseUrl:"https://www.workbuddy.cn/v2/as/genie-baas/oauth",
-  publishableKey:"wbpk_LhuOlLspcsz7bkdOLkFMlj_mCw0mOsRIAwmRYclvtjtFPEIj2ahVPoB"
-};
-const TABLE = "equipment_ledger";
+/* ===================== Supabase 配置 ===================== */
+// Project URL / Publishable Key 可直接放在前端（受 RLS 行级安全策略保护）。
+const SUPABASE_URL = "https://jhjkutkwpygvrzgyqmlr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_UlX6PGH4TQsCjgjOcVzAhA_mQUj8rCf";
+const SUPABASE_TABLE = "ledger";
+const TABLE = SUPABASE_TABLE;
+let supabaseClient = null;
 let cloud = null, currentUser = null;
 const $ = id => document.getElementById(id);
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
@@ -450,163 +454,247 @@ function deviceStatus(row){
   return best;
 }
 
-/* ===================== Auth ===================== */
-const PKCE_KEY="workbuddy-cloud.pkce.workbuddy."+publicConfig.publishableKey;
-const READONLY_KEY="equipmentLedger.readonly.v1";
-let readonlyMode=false;
-function setAuthButtonsDisabled(disabled){
-  ["loginBtn","copyLinkBtn","readonlyBtn"].forEach(id=>{const el=$(id);if(el)el.disabled=disabled;});
-}
-function initSDK(){
-  cloud=WorkBuddyCloud.createWorkBuddyCloud({endpoint:publicConfig.endpoint,oauthRelayBaseUrl:publicConfig.oauthRelayBaseUrl,publishableKey:publicConfig.publishableKey});
-  setAuthButtonsDisabled(false);
-}
-// The OAuth relay forwards callback_url verbatim. Embedding the PKCE verifier in it
-// makes the copied authorization link work in any browser/tab, not just the originating one.
-async function buildAuthUrl(){
-  const back=new URL(location.href);
-  back.pathname="/";
-  ["code","state","provider","error","error_description","wb_pkce"].forEach(k=>back.searchParams.delete(k));
-  const {data,error}=await cloud.auth.signInWithOAuth({provider:"workbuddy",redirectTo:back.toString()});
-  if(error) throw error;
-  if(!data||!data.url) throw new Error("授权服务未返回跳转地址");
-  const authUrl=new URL(data.url);
-  const cbRaw=authUrl.searchParams.get("callback_url");
-  if(!cbRaw) throw new Error("授权链接缺少回调地址");
-  const cb=new URL(cbRaw);
-  let verifier="";try{verifier=sessionStorage.getItem(PKCE_KEY)||"";}catch(e){}
-  cb.searchParams.set("wb_pkce",verifier);
-  authUrl.searchParams.set("callback_url",cb.toString());
-  return authUrl.toString();
-}
-async function restoreAuth(){
-  try{
-    const url=new URL(location.href);
-    const pkce=url.searchParams.get("wb_pkce");
-    if(pkce){try{sessionStorage.setItem(PKCE_KEY,pkce);}catch(e){}url.searchParams.delete("wb_pkce");}
-    const hasCb=url.searchParams.has("code")||url.searchParams.has("error");
-    if(!hasCb){
-      const {data:session}=await cloud.auth.getSession();
-      if(session&&session.user){enterApp(session);return;}
-      let saved=false;try{saved=localStorage.getItem(READONLY_KEY)==="1";}catch(e){}
-      if(saved) enterReadonly();
-      return;
-    }
-    if(url.searchParams.get("error")){
-      $("authError").textContent="授权被拒绝："+(url.searchParams.get("error_description")||url.searchParams.get("error"));
-      $("authView").style.display="flex";$("appView").style.display="none";return;
-    }
-    if(url.searchParams.get("provider")!=="workbuddy"){$("authError").textContent="登录回调无效，请重新登录。";return;}
-    const handler=cloud.auth.handleWorkBuddyCallback;
-    if(typeof handler!=="function"){$("authError").textContent="登录组件未就绪，请刷新后重试。";return;}
-    const {data:session,error}=await handler.call(cloud.auth);
-    if(error){$("authError").textContent=error.message||"登录失败";return;}
-    if(session){["code","state","provider"].forEach(k=>url.searchParams.delete(k));history.replaceState(null,"",url.pathname+url.search+url.hash);enterApp(session);}
-    else $("authError").textContent="登录未完成，请重试。";
-  }catch(e){$("authError").textContent="登录状态读取失败，请刷新重试。";}
-}
-async function doLogin(){
-  setAuthButtonsDisabled(true);$("authError").textContent="";
-  try{
-    const url=await buildAuthUrl();
-    // Some embedded clients block top-level navigation. If we are still here after
-    // 2s, surface the same URL so the user can copy it manually.
-    setTimeout(()=>{
-      try{
-        if((document.visibilityState||"visible")!=="hidden"&&$("linkBox").style.display!=="block"){
-          $("authLinkText").value=url;$("linkBox").style.display="block";
-          toast("若页面未跳转，请复制下方链接手动打开","err");
-        }
-      }catch(e){}
-    },2000);
-    location.assign(url);
-  }catch(e){$("authError").textContent=(e&&e.message?e.message:"登录发起失败，请重试。");setAuthButtonsDisabled(false);}
-}
-async function doCopyLink(){
-  setAuthButtonsDisabled(true);$("authError").textContent="";
-  try{
-    const url=await buildAuthUrl();
-    $("authLinkText").value=url;$("linkBox").style.display="block";
-    try{await navigator.clipboard.writeText(url);toast("授权链接已复制，请粘贴到浏览器打开","ok");}
-    catch(e){const ta=$("authLinkText");ta.focus();ta.select();toast("请全选下方链接手动复制","ok");}
-  }catch(e){$("authError").textContent=(e&&e.message?e.message:"生成授权链接失败，请重试。");}
-  finally{setAuthButtonsDisabled(false);}
-}
-async function copyAuthLink(){
-  const text=$("authLinkText").value;if(!text)return;
-  try{await navigator.clipboard.writeText(text);toast("已复制授权链接","ok");}
-  catch(e){const ta=$("authLinkText");ta.focus();ta.select();toast("请全选链接后手动复制","ok");}
-}
-function resetAvatar(){
-  const cur=$("avatar");
-  if(cur&&cur.tagName==="IMG"){
-    const d=document.createElement("div");d.className="avatar";d.id="avatar";d.textContent="—";
-    cur.replaceWith(d);
-  }
-}
-function enterReadonly(){
-  readonlyMode=true;currentUser={id:"readonly",name:"只读访客"};
-  try{localStorage.setItem(READONLY_KEY,"1");}catch(e){}
-  applyReadonlyUI();
-  $("authView").style.display="none";$("appView").style.display="block";loadData();
-}
+/* ===================== 旧 WorkBuddy 登录代码已移除 ===================== */
+// 本版本改用 Supabase（Publishable Key + RLS 只读），不再需要 WorkBuddy OAuth / PKCE 登录。
+/* ===================== Supabase 启动 / 只读界面 ===================== */
+let readonlyMode=true;   // 前端只读：只查询，不写库
 function applyReadonlyUI(){
-  const on=readonlyMode;
-  resetAvatar();
-  $("readonlyBadge").classList.toggle("show",on);
-  $("readonlyTip").style.display=on?"block":"none";
-  const name=on?"只读访客":((currentUser&&currentUser.name)||"用户");
-  $("userName").textContent=name;
-  const av=$("avatar");if(av)av.textContent=on?"只":name.slice(0,1).toUpperCase();
-  $("logoutBtn").textContent=on?"登录编辑":"退出";
-  $("importBtn").style.display=on?"none":"";
-  $("batchPhotoBtn").style.display=on?"none":"";
-  $("addBtn").style.display=on?"none":"";
-}
-async function doLogout(){
-  if(readonlyMode){
-    readonlyMode=false;currentUser=null;
-    try{localStorage.removeItem(READONLY_KEY);}catch(e){}
-  }else{
-    try{await cloud.auth.signOut();}catch(e){}
-    currentUser=null;
+  const badge=$("readonlyBadge");
+  if(badge){badge.textContent="云端只读";badge.classList.add("show");}
+  const tip=$("readonlyTip");
+  if(tip){
+    tip.style.display="block";
+    tip.innerHTML="当前为 <strong>云端只读模式</strong>：数据实时来自 Supabase <code>ledger</code> 表，页面不写库。修改数据后点右上角「刷新」重新查询。";
   }
-  applyReadonlyUI();
-  $("appView").style.display="none";$("authView").style.display="flex";
-  $("linkBox").style.display="none";$("authError").textContent="";
+  $("userName").textContent="云端台账";
+  const av=$("avatar");if(av)av.textContent="云";
+  ["logoutBtn","importBtn","batchPhotoBtn","addBtn"].forEach(id=>{const el=$(id);if(el)el.style.display="none";});
 }
-function enterApp(session){
-  if(!session||!session.user){$("authView").style.display="flex";$("appView").style.display="none";return;}
-  readonlyMode=false;
-  try{localStorage.removeItem(READONLY_KEY);}catch(e){}
-  currentUser=session.user;
-  const name=currentUser.name||"用户";
-  applyReadonlyUI();
-  if(currentUser.avatarUrl){
-    const img=document.createElement("img");img.id="avatar";img.src=currentUser.avatarUrl;img.className="avatar";img.alt="";
-    img.onerror=()=>{const d=document.createElement("div");d.id="avatar";d.className="avatar";d.textContent=name.slice(0,1).toUpperCase();img.replaceWith(d);};
-    const old=$("avatar");if(old)old.replaceWith(img);
+function showFatalError(title,desc){
+  $("loadingState").style.display="none";
+  $("tableWrap").style.display="none";
+  $("emptyState").style.display="none";
+  $("appView").style.display="none";
+  $("authView").style.display="flex";
+  const h=$("authView").querySelector("h1");if(h)h.textContent=title;
+  const p=$("bootDesc");if(p)p.innerHTML=desc;
+  const rb=$("reloadBtn");if(rb)rb.style.display="block";
+  const ae=$("authError");if(ae)ae.textContent="";
+}
+// 把 Supabase / PostgREST 的错误翻译成可操作的提示
+function supabaseErrorHTML(err){
+  const msg=String((err&&(err.message||err.error_description||err.error))||err||"未知错误");
+  const code=err&&err.code?String(err.code):"";
+  const details=err&&err.details?String(err.details):"";
+  const hint=err&&err.hint?String(err.hint):"";
+  const all=(msg+" "+details+" "+hint+" "+code).toLowerCase();
+  let advice="";
+  if(/relation .*does not exist|42p01|undefined table/.test(all)){
+    advice="表 <code>ledger</code> 不存在：请确认表名拼写，且表建在 <code>public</code> schema 下。";
+  }else if(/permission denied|42501|row-level security|rls/.test(all)){
+    advice="查询被 RLS（行级安全）拦截：请在 Supabase SQL Editor 给 ledger 表加一条 SELECT 策略，例如："
+      +"<div class=\"serve-box\"><code>create policy \"public read\" on public.ledger for select using (true);</code></div>";
+  }else if(/jwt|invalid api key|apikey|401|unauthorized/.test(all)){
+    advice="Key 可能无效：请核对 Project URL 与 Publishable Key 是否属于同一个项目。";
+  }else if(/failed to fetch|networkerror|load failed|network/.test(all)){
+    advice="网络无法访问 <code>"+SUPABASE_URL+"</code>：请检查本机网络、代理或公司防火墙。";
+  }else if(/column .* does not exist|42703/.test(all)){
+    advice="表结构与页面字段不匹配：请把 <code>ledger</code> 的实际列名补充到代码里的 <code>DB_ALIASES</code>。";
   }
-  $("authView").style.display="none";$("appView").style.display="block";loadData();
+  return '<div class="err-detail"><b>错误信息：</b>'+esc(msg)
+    +(code?'<br><b>错误码：</b>'+esc(code):"")
+    +(details?'<br><b>详情：</b>'+esc(details):"")
+    +(hint?'<br><b>提示：</b>'+esc(hint):"")
+    +'</div>'+(advice?'<p class="serve-tip">'+advice+"</p>":"");
+}
+function bootLedger(){
+  readonlyMode=true;
+  currentUser={id:"supabase",name:"云端台账"};
+  $("authView").style.display="none";
+  $("appView").style.display="block";
+  const rb=$("reloadBtn");if(rb)rb.style.display="none";
+  applyReadonlyUI();
+  if(typeof supabase==="undefined"||!supabase||typeof supabase.createClient!=="function"){
+    showFatalError("Supabase SDK 加载失败",
+      "未能从 CDN 加载 <code>@supabase/supabase-js@2</code>。请检查网络后刷新；若在离线内网，请把 SDK 下载到本地并修改 script 的 src。");
+    return;
+  }
+  try{
+    supabaseClient=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:false,autoRefreshToken:false}});
+  }catch(e){
+    showFatalError("Supabase 初始化失败",supabaseErrorHTML(e));
+    return;
+  }
+  loadData();
 }
 
 /* ===================== Data ===================== */
 let allRows=[],filter="all",keyword="",deptFilter="",inspectorFilter="",photoUrls={};
 const PHOTO_KEYS=["photo_nameplate","photo_use_mark","photo_use_reg_cert","photo_overdesign_reg_cert","photo_shenban_code","photo_label","photo_dial","photo_inlet_dn","photo_outlet_dn","photo_outlet_length","photo_frost_protection","photo_pipe","photo_pipe_2","photo_path"];
+/* ---------- 数据库字段 → 前端字段 映射 ---------- */
+// Supabase 返回英文列名，且可能与页面内部字段不同（例如 device_id、tank_inspect_date）。
+// 三级映射：同名列直通 → 别名字典 → 关键字兜底，最后统一清洗日期与枚举值。
+const DB_ALIASES={
+  device_no:["device_no","device_code","device_id","equip_no","equipment_no","equipment_id","deviceno","code","设备编号","设备号"],
+  device_name:["device_name","equip_name","equipment_name","name","title","设备名称"],
+  tank_date:["tank_date","tank_inspect_date","tank_inspection_date","tank_next_inspect_date","tank_next_inspection_date","tank_check_date","tank_test_date","储气罐下次检验日期","储气罐检验日期"],
+  safety_valve_date:["safety_valve_date","safety_valve_inspect_date","safety_valve_inspection_date","safety_valve_next_inspect_date","valve_inspect_date","valve_inspection_date","valve_date","安全阀下次检验日期","安全阀检验日期"],
+  pressure_gauge_date:["pressure_gauge_date","pressure_gauge_inspect_date","pressure_gauge_inspection_date","pressure_gauge_next_inspect_date","gauge_inspect_date","gauge_inspection_date","gauge_date","压力表下次检验日期","压力表检验日期"],
+  updated_at:["updated_at","update_at","update_time","updated_time","modify_time","modified_at","更新时间","台账更新日期"],
+  created_at:["created_at","create_time","created_time","创建时间"],
+  device_type:["device_type","equip_type","equipment_type","device_category","category","type","设备种类"],
+  equip_status:["equip_status","device_status","running_status","status","设备状态"],
+  factory:["factory","plant","works","workshop","分厂","所属分厂"],
+  use_dept:["use_dept","dept","department","use_department","usage_dept","使用部门","设备使用部门"],
+  inspector:["inspector","checker","responsible_person","responsible","点检人","责任点检"],
+  manufacture_date:["manufacture_date","manufactured_date","produce_date","制造日期"],
+  commission_date:["commission_date","commissioning_date","put_into_use_date","use_date","投入使用日期"],
+  design_life:["design_life","design_lifetime","service_life","设计使用年限","使用年限"],
+  reg_code:["reg_code","register_code","registration_code","注册代码","设备注册代码"],
+  use_cert_no:["use_cert_no","cert_no","certificate_no","使用证编号"],
+  install_addr:["install_addr","install_address","installation_address","address","location","安装地址","设备安装地址"],
+  device_variety:["device_variety","variety","设备品种"],
+  volume:["volume","tank_volume","容积","容积m³"],
+  design_pressure:["design_pressure","设计压力"],
+  design_temp:["design_temp","design_temperature","设计温度"],
+  medium:["medium","medium_type","介质"],
+  recommend_life:["recommend_life","recommended_life","推荐使用寿命"],
+  archive_complete:["archive_complete","archive_completed","archive","档案是否齐全"],
+  remark:["remark","remarks","note","备注"],
+  maintainer_no:["maintainer_no","maintainer_id","maintainer","设备维护人岗号","维护人岗号"],
+  inlet_dn:["inlet_dn","inlet_diameter","入口管径"],
+  outlet_dn:["outlet_dn","outlet_diameter","出口管径","出口管经"],
+  outlet_length:["outlet_length","出口长度"],
+  frost_protection:["frost_protection","防冻保温"],
+  tank_service_std:["tank_service_std","tank_standard","储气罐检修标准"],
+  valve_service_std:["valve_service_std","valve_standard","安全阀检修标准"],
+  gauge_service_std:["gauge_service_std","gauge_standard","压力表检修标准"]
+};
+const DB_PATTERNS=[
+  ["tank_date",/(tank|储气罐).*(date|time|inspect|check|test|检验|日期)/i],
+  ["safety_valve_date",/(safety|valve|安全阀).*(date|time|inspect|check|test|检验|日期)/i],
+  ["pressure_gauge_date",/(gauge|pressure|压力表).*(date|time|inspect|check|test|检验|日期)/i],
+  ["device_no",/^(device|equip|equipment).*(no|id|code)$/i],
+  ["device_name",/(device|equip|equipment).*name$/i]
+];
+function pickDbValue(row,lookup,aliases){
+  for(const a of aliases){
+    const real=lookup.get(String(a).toLowerCase());
+    if(real!==undefined&&row[real]!==undefined&&row[real]!==null)return {key:real,value:row[real]};
+  }
+  return null;
+}
+
+/* ---------- 单元格清洗与日期归一 ---------- */
+const EMPTY_CELLS=new Set(["","—","–","-","--","null","undefined","n/a","na"]);
+const DATE_FIELDS=new Set(["tank_date","safety_valve_date","pressure_gauge_date","manufacture_date","commission_date"]);
+// 页面内部字段白名单：数据库里恰好同名的列直接沿用
+const CANON_FIELDS=["owner_id","owner_name","category","factory","device_no","device_name",
+  "tank_date","safety_valve_date","pressure_gauge_date","photo_path","remark","created_at","updated_at",
+  "seq","reg_code","use_cert_no","manufacture_date","design_life","commission_date","tank_nameplate",
+  "use_mark","use_reg_cert","overdesign_reg_cert","shenban_code","device_type","tank_service_std",
+  "install_addr","use_dept","maintainer_no","equip_status","valve_service_std","gauge_service_std",
+  "inlet_dn","outlet_dn","outlet_length","photo_label","photo_dial","photo_pipe","photo_pipe_2",
+  "inspector","frost_protection","photo_nameplate","photo_use_mark","photo_use_reg_cert",
+  "photo_overdesign_reg_cert","photo_shenban_code","photo_inlet_dn","photo_outlet_dn",
+  "photo_outlet_length","photo_frost_protection","device_variety","volume","design_pressure",
+  "design_temp","medium","recommend_life","archive_complete"];
+function cleanCell(v){
+  if(v===null||v===undefined)return null;
+  if(typeof v==="boolean")return v?"是":"否";
+  const s=String(v).replace(/\u00a0/g," ").trim();
+  return EMPTY_CELLS.has(s.toLowerCase())?null:s;
+}
+function isoDate(v){
+  if(!v)return null;
+  const s=String(v).trim();
+  const m=s.match(/^(\d{4})[-/.年](\d{1,2})[-/.月](\d{1,2})/);
+  if(m)return m[1]+"-"+String(m[2]).padStart(2,"0")+"-"+String(m[3]).padStart(2,"0");
+  const d=new Date(s);
+  if(isNaN(d.getTime()))return null;
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function mapDbRow(row,i,lookup){
+  const out={};
+  // 1) 同名列直通
+  CANON_FIELDS.forEach(f=>{if(row[f]!==undefined&&row[f]!==null)out[f]=row[f];});
+  // 2) 别名字典
+  Object.keys(DB_ALIASES).forEach(field=>{
+    if(out[field]!==undefined&&out[field]!==null&&out[field]!=="")return;
+    const hit=pickDbValue(row,lookup,DB_ALIASES[field]);
+    if(hit)out[field]=hit.value;
+  });
+  // 3) 关键字兜底（列名与别名都不匹配时，按 tank/valve/gauge 等词根猜）
+  DB_PATTERNS.forEach(([field,re])=>{
+    if(out[field]!==undefined&&out[field]!==null&&out[field]!=="")return;
+    for(const k of Object.keys(row)){
+      if(re.test(k)){out[field]=row[k];break;}
+    }
+  });
+  // 4) 值清洗：空占位转 null，检验日期统一 YYYY-MM-DD
+  Object.keys(out).forEach(k=>{
+    let v=cleanCell(out[k]);
+    if(v!==null&&DATE_FIELDS.has(k))v=isoDate(v);
+    out[k]=v;
+  });
+  // 5) 主键：数据库 id 可能是 uuid，界面内部统一用自增序号，避免 onclick 模板出错
+  out._dbId=(row.id!==undefined&&row.id!==null)?row.id:null;
+  out.id=i+1;
+  const kind=String(out.device_type||"").toLowerCase();
+  out.device_type=(kind==="pressure"||kind.indexOf("简单压力")>=0||kind.indexOf("压力容器")>=0)?"pressure":"special";
+  const st=String(out.equip_status||"").toLowerCase();
+  out.equip_status=(st==="停用"||st==="disabled"||st==="inactive"||st==="0"||st==="false")?"停用":"在用";
+  const arc=String(out.archive_complete||"");
+  if(arc==="是"||arc==="true"||arc==="yes")out.archive_complete="齐全";
+  else if(arc==="否"||arc==="false"||arc==="no")out.archive_complete="不齐全";
+  if(!out.device_name)out.device_name="（未命名设备）";
+  return out;
+}
+function mapDbRows(list){
+  if(!list||!list.length)return [];
+  const lookup=new Map();
+  Object.keys(list[0]).forEach(k=>lookup.set(k.toLowerCase(),k));
+  return list.map((row,i)=>mapDbRow(row,i,lookup));
+}
+
+function showAlert(html){
+  const el=$("dataAlert");if(!el)return;
+  el.innerHTML=html;el.style.display="block";
+}
+function hideAlert(){
+  const el=$("dataAlert");if(el){el.style.display="none";el.innerHTML="";}
+}
+// 三个检验日期一个都没识别出来时，把真实列名显示在页面上，方便补充映射
+function checkSchemaWarning(rawSample,rows){
+  const hit=["tank_date","safety_valve_date","pressure_gauge_date"].filter(f=>rows.some(r=>r[f]));
+  if(hit.length===3)return;
+  const cols=Object.keys(rawSample||{});
+  showAlert("已连接 Supabase，但只识别到 <strong>"+hit.length+"/3</strong> 个检验日期字段（数据表实际列名：<code>"+esc(cols.join("、"))+"</code>）。请把这些列名补充到代码里的 <code>DB_ALIASES</code>，或把列名发给开发者调整映射。");
+}
 async function loadData(){
   $("loadingState").style.display="block";$("tableWrap").style.display="none";$("emptyState").style.display="none";
+  hideAlert();
+  photoUrls={};
   try{
-    const table=readonlyMode?"equipment_ledger_readonly":TABLE;
-    const {data,error}=await cloud.database.from(table).select("*").order("created_at",{ascending:false});
-    if(error) throw error;
-    allRows=Array.isArray(data)?data:[];
-    if(readonlyMode) photoUrls={}; else await loadPhotoUrls();
-    updateFilterOptions();render();
-  }catch(e){
-    $("loadingState").style.display="none";$("emptyState").style.display="block";
-    $("emptyState").querySelector("h3").textContent="加载失败";
-    $("emptyHint").textContent="网络异常，数据加载失败，请点击「刷新」重试。";
-    toast("数据加载失败，请检查网络后刷新","err");
+    if(!supabaseClient)throw new Error("Supabase 客户端未初始化");
+    const {data,error}=await supabaseClient.from(SUPABASE_TABLE).select("*");
+    if(error)throw error;
+    const list=Array.isArray(data)?data:[];
+    console.info("[Supabase] ledger 返回 "+list.length+" 行",list[0]?Object.keys(list[0]):[]);
+    allRows=mapDbRows(list);
+    allRows.forEach(r=>PHOTO_KEYS.forEach(k=>{const p=r[k];if(p&&/^(https?:|data:)/i.test(p))photoUrls[p]=p;}));
+    updateFilterOptions();
+    render();
+    if(!list.length){
+      showAlert("查询成功，但 <strong>ledger</strong> 表中没有任何记录。请先在 Supabase 中导入设备数据，然后点右上角「刷新」重新查询。");
+    }else{
+      checkSchemaWarning(list[0],allRows);
+    }
+  }catch(err){
+    console.error("[Supabase] 查询失败：",err);
+    allRows=[];
+    updateFilterOptions();
+    showFatalError("读取 ledger 表失败",supabaseErrorHTML(err));
   }
 }
 function fillSelect(id,values,cur,emptyLabel){
@@ -621,28 +709,15 @@ function updateFilterOptions(){
   inspectorFilter=fillSelect("inspectorFilter",pick("inspector"),inspectorFilter,"责任点检");
 }
 async function loadPhotoUrls(){
+  // Supabase 模式下不预加载签名地址；若数据库里存的是完整 http(s) 地址，会直接使用。
   photoUrls={};
-  const paths=[...new Set(allRows.flatMap(r=>PHOTO_KEYS.map(k=>r[k]).filter(Boolean)))];
-  if(!paths.length) return;
-  try{
-    const res=await cloud.storage.createSignedUrls(paths,3600);
-    if(res&&!res.error&&Array.isArray(res.data)){
-      res.data.forEach(item=>{
-        if(!item) return;
-        const p=item.path,u=(typeof item==="string")?item:(item.signedUrl||item.signed_url||item.url);
-        if(p&&u) photoUrls[p]=u;
-      });
-    }
-  }catch(e){}
 }
 async function getPhotoUrl(path){
-  if(photoUrls[path]) return photoUrls[path];
-  try{
-    const res=await cloud.storage.createSignedUrl(path,600),d=res&&res.data;
-    const u=(typeof d==="string")?d:(d&&(d.signedUrl||d.signed_url||d.url));
-    if(u){photoUrls[path]=u;return u;}
-  }catch(e){}
-  return null;
+  if(!path)return null;
+  if(photoUrls[path])return photoUrls[path];
+  if(/^(https?:|data:|blob:)/i.test(path))return path;
+  if(/\.(png|jpe?g|webp|gif|bmp)$/i.test(path))return path;
+  return null; // 形如对象存储 key 的照片路径，需要签名后才能访问
 }
 function firstPhoto(r){for(const k of PHOTO_KEYS){if(r[k]&&photoUrls[r[k]]) return {path:r[k],url:photoUrls[r[k]]};}return null;}
 function firstPath(r){for(const k of PHOTO_KEYS){if(r[k]) return r[k];}return null;}
@@ -692,9 +767,9 @@ function render(){
   if(!rows.length){
     $("tableBody").innerHTML="";
     $("tableWrap").style.display="none";$("emptyState").style.display="block";
-    $("emptyState").querySelector("h3").textContent=allRows.length===0?"暂无数据":"没有符合条件的设备";
+    $("emptyState").querySelector("h3").textContent=allRows.length===0?"未查询到数据":"没有符合条件的设备";
     $("emptyHint").textContent=allRows.length===0
-      ?(readonlyMode?"台账暂无数据，可点右上角「登录编辑」登录后导入":"点击右上角「导入 Excel」或「新增设备」开始建立台账")
+      ?(readonlyMode?"ledger 表中暂无设备记录，请在 Supabase 中导入数据后点击「刷新」":"点击右上角「导入 Excel」或「新增设备」开始建立台账")
       :"试试切换筛选条件、分厂或清空搜索关键词";
     return;
   }
@@ -728,7 +803,7 @@ function photoCell(r){
   const f=firstPhoto(r);
   if(f) return `<td data-label="照片"><img class="thumb" src="${esc(f.url)}" title="查看照片" onclick="viewPhoto(${r.id})" /></td>`;
   const p=firstPath(r);
-  if(p&&readonlyMode) return `<td data-label="照片"><div class="thumb-empty" title="登录后可查看照片">${ICON.camera}</div></td>`;
+  if(p&&readonlyMode) return `<td data-label="照片"><div class="thumb-empty" title="未生成照片访问地址">${ICON.camera}</div></td>`;
   if(p) return `<td data-label="照片"><div class="thumb" title="点击查看照片" style="display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-sub);" onclick="viewPhoto(${r.id})">${ICON.camera}</div></td>`;
   return `<td data-label="照片"><div class="thumb-empty" title="无照片">${ICON.camera}</div></td>`;
 }
@@ -1275,9 +1350,10 @@ async function deleteRow(id){
   }catch(e){toast("删除失败，请检查网络后重试","err");}
 }
 async function viewPhoto(id){
-  if(readonlyMode){toast("照片需登录后在编辑模式中查看","err");return;}
-  const r=allRows.find(x=>x.id===id);if(!r)return;const p=firstPath(r);if(!p)return;
-  const url=await getPhotoUrl(p);if(!url){toast("照片加载失败，请检查网络后重试","err");return;}
+  const r=allRows.find(x=>x.id===id);if(!r)return;
+  const p=firstPath(r);if(!p){toast("该设备未登记照片","err");return;}
+  const url=await getPhotoUrl(p);
+  if(!url){toast("照片存的是对象存储路径，需生成签名地址后才能显示","err");return;}
   $("viewerImg").src=url;$("viewer").classList.add("show");
 }
 
@@ -1388,12 +1464,7 @@ function wirePhotoEvents(){
 
 /* ===================== Events ===================== */
 function wireEvents(){
-  $("loginBtn").addEventListener("click",doLogin);
-  $("copyLinkBtn").addEventListener("click",doCopyLink);
-  $("copyLinkConfirm").addEventListener("click",copyAuthLink);
-  $("linkBoxClose").addEventListener("click",()=>{$("linkBox").style.display="none";});
-  $("readonlyBtn").addEventListener("click",enterReadonly);
-  $("logoutBtn").addEventListener("click",doLogout);
+  // Supabase 匿名只读模式无需登录，原 loginBtn / copyLinkBtn / readonlyBtn / logoutBtn 绑定已移除
   $("addBtn").addEventListener("click",()=>openDrawer(null));
   $("refreshBtn").addEventListener("click",loadData);
   $("searchInput").addEventListener("input",e=>{keyword=e.target.value;render();});
@@ -1446,10 +1517,9 @@ function wireEvents(){
 }
 
 /* ===================== Bootstrap ===================== */
-(async function main(){
+(function main(){
   wireEvents();
-  try{initSDK();}catch(e){$("authError").textContent="组件加载失败，请检查网络后刷新页面。";return;}
-  await restoreAuth();
+  bootLedger();   // Supabase 模式：初始化客户端并查询 ledger 表
 })();
 </script>
 </body>
